@@ -1,0 +1,3 @@
+# Dz3 Hardware description
+
+in progress...
