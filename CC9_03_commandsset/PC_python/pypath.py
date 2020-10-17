@@ -94,9 +94,13 @@ class Paint(object):
 
     def theGrid(self, scaleval):
         
+        self.scrClr();
+
         if len(self.gridlines) > 0:
             for gline in self.gridlines:
                 self.c.delete(gline)
+
+        self.reDraw();
 
         spc100cm = 10 * 100 / self.choose_size_button.get() #100cm in pixels
 
@@ -200,48 +204,61 @@ class Paint(object):
 
 
     def pointerUp(self,event):
+        self.drivescale = self.choose_size_button.get() /100
         if not self.old_x and not self.old_y:
-            _x = event.x
-            _y = event.y 
+            _x = event.x * self.drivescale 
+            _y = event.y * self.drivescale 
             
             self.old_x = _x
             self.old_y = _y 
             
             self.points.append((_x, _y))
 
+            _x /= self.drivescale
+            _y /= self.drivescale    
+
             self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
             fill=None, width=2)
 
         else:
-            self.lines.append(self.c.create_line(self.old_x, self.old_y, event.x, event.y,
+            _x = event.x * self.drivescale 
+            _y = event.y * self.drivescale 
+            
+            
+            self.points.append((_x, _y))
+
+           
+            self.lines.append(self.c.create_line(self.old_x/self.drivescale, self.old_y/self.drivescale, 
+                               _x/self.drivescale, _y/self.drivescale,
                                width=self.line_width, fill='red',
                                capstyle=ROUND, smooth=TRUE, splinesteps=36))
-            self.old_x = event.x
-            self.old_y = event.y
-            self.points.append((event.x, event.y))
+           
+            self.old_x = _x
+            self.old_y = _y 
 
             # figuring out the propper command for this click
             origin_x, origin_y = self.points[0]
             iA = 90;
-            self.drivescale = self.choose_size_button.get()
-
             # handling this very point
 
-            point = (event.x, event.y)
+            point = (_x, _y)
             cX = point[0]
             cY = point[1] 
 
             dX = point[0] - (self.points[-2][0])
             dY = (self.points[-2][1]) - point[1]
 
-            dL = math.sqrt( dX**2 +dY**2 ) * self.drivescale / 100
+            dL = math.sqrt( dX**2 +dY**2 ) #* self.drivescale / 100
 
             # adding txt to the plot for easyreference.
-            mX = (point[0] + self.points[-2][0]) / 2
-            mY = (point[1] + self.points[-2][1]) / 2
+            mX = ((point[0] + self.points[-2][0]) / 2) / self.drivescale
+            mY = ((point[1] + self.points[-2][1]) / 2) / self.drivescale
 
             self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
                         text=f"{int(dL)}cm"))
+
+            cX /= self.drivescale
+            cY /= self.drivescale
 
             self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
             fill=None, width=2) )
@@ -296,7 +313,7 @@ class Paint(object):
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 
-    def clear(self):
+    def scrClr(self):
         self.c.delete(self.origin)
 
         for lin in self.lines:
@@ -305,6 +322,55 @@ class Paint(object):
             self.c.delete(txt)
         for joint in self.joints:
             self.c.delete(joint)
+
+    def reDraw(self):
+        #  grabbing the scale
+        localscale = 1/(self.choose_size_button.get() /100)
+        # drawing origin oval
+        if len(self.points) > 0:
+            _x, _y = self.points[0] 
+            _x *= localscale
+            _y *= localscale
+
+            self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
+                fill=None, width=2)
+            
+            for i,point in enumerate(self.points):
+                if i > 0:
+                    cX, cY = point
+                    cX *= localscale
+                    cY *= localscale
+                    self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
+                                        fill=None, width=2) )
+                    
+                    _x,_y = self.points[i-1]
+                    _x *= localscale
+                    _y *= localscale
+
+                    self.lines.append(self.c.create_line(_x, _y, cX, cY,
+                               width=self.line_width, fill='red',
+                               capstyle=ROUND, smooth=TRUE, splinesteps=36))
+
+                    mX = (_x + cX) / 2
+                    mY = (_y + cY) / 2
+
+                    dL = self._distance(self.points[i-1], point)
+
+                    self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
+                        text=f"{int(dL)}cm"))
+
+
+
+        # for lin in self.lines:
+        #     self.c.delete(lin)
+        # for txt in self.txt:
+        #     self.c.delete(txt)
+        # for joint in self.joints:
+        #     self.c.delete(joint)
+
+
+    def clear(self):
+        self.scrClr();
 
         self.points = [];
         self.lines = [];
