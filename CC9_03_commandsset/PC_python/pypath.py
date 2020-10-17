@@ -65,6 +65,8 @@ class Paint(object):
         self.active_button = self.pen_button
         self.c.bind('<B1-Motion>', self.pointer)
         self.c.bind('<ButtonRelease-1>', self.pointerUp)
+        # trying to makepossible to draw arcs
+        self.c.bind('<ButtonRelease-3>', self.pointerArc)
 
     def activate_button(self, some_button, eraser_mode=False):
         self.active_button.config(relief=RAISED)
@@ -80,6 +82,27 @@ class Paint(object):
         #     self.old_x = event.x
         #     self.old_y = event.y
         pass 
+
+    def pointerArc(self, event):
+        # lets check if this is maybe the first click
+        if not self.old_x and not self.old_y:
+            _x = event.x
+            _y = event.y 
+            
+            self.old_x = _x
+            self.old_y = _y 
+            
+            self.points.append((_x, _y))
+
+            self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
+            fill=None, width=2)
+
+        else:
+            # skoro to juz kolejny klik, rysujemy elipsę
+            _x = event.x
+            _y = event.y 
+
+            
 
     def pointerUp(self,event):
         if not self.old_x and not self.old_y:
