@@ -55,9 +55,11 @@ float current_angle = 0;
 int program_steps = 0;
 int current_program_step = 0;
 
-float memoryL[20];
-float memoryA[20];
-float mempryS[20];
+const int stepsno = 100;
+
+int memoryL[stepsno];
+int memoryA[stepsno];
+int mempryS[stepsno];
 
 float lastL;
 float lastA;
@@ -161,7 +163,7 @@ void loop() {
         lastA = param[1];
         lastV = max_speed;
         newV = param[2];
-        
+
         goNormal(param[0], param[1], param[2]);
 
         break;
@@ -171,10 +173,10 @@ void loop() {
         goNormal(-lastL, -lastA, 0);// moving back
         // waiting to finish move
         while (!(stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0)) {
-        // just wait in loop for the step to finish.
-        Serial.print(".");
+          // just wait in loop for the step to finish.
+          Serial.print(".");
         }
-        goNormal(0,0,lastV);
+        goNormal(0, 0, lastV);
 
         break;
 
@@ -196,8 +198,8 @@ void loop() {
         lastA = param[1];
         lastV = max_speed;
         newV = param[2];
-        
-        // move 
+
+        // move
         goNormal(param[0], param[1], param[2]);
         // add to sequence
         addToSequence(param[0], param[1], param[2]);
@@ -206,31 +208,31 @@ void loop() {
 
       case 29:
         //remove last from memory
-        
-        if (program_steps > 0){
+
+        if (program_steps > 0) {
           program_steps--;
         }
         break;
 
       case 30:
         // execute sequence
-        runSequence(false,false);
+        runSequence(false, false);
         break;
 
       case 31:
         // resume sequence
-        runSequence(false,true);
+        runSequence(false, true);
         break;
 
       case 33:
         // execute sequence in loop
-        runSequence(true,false);
+        runSequence(true, false);
         break;
 
       case 39:
         //remove last from memory
         program_steps = 0;
-        
+
         break;
 
       default:
@@ -257,64 +259,65 @@ void loop() {
 
 
 // Subroutines and functions
+
 void recvWithStartEndMarkers() {
-    //  Read data in this style <M, P, R>
-    static boolean recvInProgress = false;
-    static byte ndx = 0;
-    char startMarker = '<';
-    char endMarker = '>';
-    char rc;
+  //  Read data in this style <M, P, R>
+  static boolean recvInProgress = false;
+  static byte ndx = 0;
+  char startMarker = '<';
+  char endMarker = '>';
+  char rc;
 
-    while (Serial.available() > 0 && newData == false) {
-      rc = Serial.read();
+  while (Serial.available() > 0 && newData == false) {
+    rc = Serial.read();
 
-      if (recvInProgress == true) {
-        if (rc != endMarker) {
-          receivedChars[ndx] = rc;
-          ndx++;
-          if (ndx >= numChars) {
-            ndx = numChars - 1;
-          }
-        }
-        else {
-          receivedChars[ndx] = '\0'; // terminate the string
-          recvInProgress = false;
-          ndx = 0;
-          newData = true;
+    if (recvInProgress == true) {
+      if (rc != endMarker) {
+        receivedChars[ndx] = rc;
+        ndx++;
+        if (ndx >= numChars) {
+          ndx = numChars - 1;
         }
       }
-
-      else if (rc == startMarker) {
-        recvInProgress = true;
+      else {
+        receivedChars[ndx] = '\0'; // terminate the string
+        recvInProgress = false;
+        ndx = 0;
+        newData = true;
       }
     }
+
+    else if (rc == startMarker) {
+      recvInProgress = true;
+    }
   }
+}
 
-  //============
+//============
 
-  void parseData() {      // split the data into its parts
+void parseData() {      // split the data into its parts
 
-    char * strtokIndx; // this is used by strtok() as an index
+  char * strtokIndx; // this is used by strtok() as an index
 
-    strtokIndx = strtok(tempChars, ",");     // get the first part - the string
-    command = atoi(strtokIndx);     // convert this part to an float
+  strtokIndx = strtok(tempChars, ",");     // get the first part - the string
+  command = atoi(strtokIndx);     // convert this part to an float
 
-    strcpy(messageFromPC, strtokIndx); // copy it to messageFromPC
+  strcpy(messageFromPC, strtokIndx); // copy it to messageFromPC
 
-    strtokIndx = strtok(NULL, ",");
-    param[0] = atof(strtokIndx);     // convert this part to a float
-
-
-    strtokIndx = strtok(NULL, ",");
-    param[1] = atof(strtokIndx);     // convert this part to a float
-
-    strtokIndx = strtok(NULL, ",");
-    param[2] = atof(strtokIndx);     // convert this part to a float
+  strtokIndx = strtok(NULL, ",");
+  param[0] = atoi(strtokIndx);     // convert this part to a float
 
 
+  strtokIndx = strtok(NULL, ",");
+  param[1] = atoi(strtokIndx);     // convert this part to a float
+
+  strtokIndx = strtok(NULL, ",");
+  param[2] = atoi(strtokIndx);     // convert this part to a float
 
 
-  }
+
+
+}
 
 
 // ==========================
@@ -322,90 +325,210 @@ void recvWithStartEndMarkers() {
 // ==========================
 
 void runSequence(bool inloop, bool resumeit) {
-  
-  
+
+
   bool inSequence = true;
 
   int starti = 0;
-  if(resumeit) starti = current_program_step+1;
-  
+  if (resumeit) starti = current_program_step + 1;
+
   //masterloop - infinite
-  while(true){
-  
-  // running saved sequence
-  if ( program_steps > 0 ) {
-    Serial.print("starting sequence of ");
-    Serial.print(program_steps);
-    Serial.println("steps");
-    
-    // if we have something in the arrays
-    for (int i = starti; i < program_steps; i++) {
+  while (true) {
 
-      if (!inSequence) break;
-    
-      // making the step
-      Serial.print("Step ");
-      Serial.println(i);
-      
-      current_program_step = i;
-      
-      goNormal(memoryL[i], memoryA[i], mempryS[i]);
-      
-      // waiting to becompleted
-      while (!(stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0)) {
-        // just wait in loop for the step to finish.
-        // grabstuff from serial
-        recvWithStartEndMarkers();
+    // running saved sequence
+    if ( program_steps > 0 ) {
+      Serial.print("starting sequence of ");
+      Serial.print(program_steps);
+      Serial.println("steps");
 
-        if (newData == true) {
+      // if we have something in the arrays
+      for (int i = starti; i < program_steps; i++) {
 
-          strcpy(tempChars, receivedChars);
+        if (!inSequence) break;
 
-          parseData();
-          newData = false;
+        // making the step
+        Serial.print("Step ");
+        Serial.println(i);
 
-          Serial.print("command: ");
-          Serial.print(command);
+        current_program_step = i;
 
-          if (command == 0) {
-            inSequence = false;
-            break;
+        goNormal(memoryL[i], memoryA[i], mempryS[i]);
+
+        // waiting to becompleted
+        while (!(stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0)) {
+          // just wait in loop for the step to finish.
+
+
+          //check bumpers
+          if (analogRead(Front) < 200 && !stop_front) {
+            stop_front = true;
+          }
+          else {
+            stop_front = false;
           }
 
-          //        Serial.print(stepper1.distanceToGo());
-          //        Serial.print(",");
-          //        Serial.println(stepper2.distanceToGo());
+          if (analogRead(Back) < 200 && !stop_back) {
+            stop_back = true;
+          }
+          else {
+            stop_back = false;
+          }
+
+          
+          // grabstuff from serial
+          recvWithStartEndMarkers();
+
+
+          if (newData == true) {
+
+            strcpy(tempChars, receivedChars);
+
+            parseData();
+            newData = false;
+
+            Serial.print("command: ");
+            Serial.print(command);
+
+            if (command == 0) {
+              inSequence = false;
+              break;
+            }
+
+            //        Serial.print(stepper1.distanceToGo());
+            //        Serial.print(",");
+            //        Serial.println(stepper2.distanceToGo());
+
+          }
 
         }
-
       }
+      starti = 0;
     }
-    starti = 0;
+
+    if (!inloop || !inSequence) break;
+  }
+}
+
+void addToSequence(int p1, int p2, int p3) {
+  // adding the step to memory
+  if (program_steps < stepsno) {
+
+    memoryL[program_steps] = p1;
+    memoryA[program_steps] = p2;
+    mempryS[program_steps] = p3;
+
+    program_steps++;
+    Serial.print("Step added, total: ");
+    Serial.print(program_steps);
+    Serial.println(" steps");
+
+  }
+  else Serial.print("Memory full");
+}
+
+void goStop() {
+  // emergency stop asap
+  stepper1.setAcceleration( 1e3 * accl );
+  stepper2.setAcceleration( 1e3 * accl );
+
+  stepper1.stop();
+  stepper2.stop();
+
+  PORTB |= 0b00000100;
+
+  stepper1.move(0);
+  stepper2.move(0);
+}
+
+void goNormal(float floatFrom_01, float floatFrom_02, float floatFrom_03) {
+
+  // normal move as previously
+  if (floatFrom_03 != 0) {
+    // set new max speed for this move
+
+    max_speed = floatFrom_03;
+    if ( abs(max_speed) > max_speed_limit ) max_speed =  max_speed_limit;
   }
 
-  if (!inloop || !inSequence) break;
-}
-}
+  going_forward = (floatFrom_01 > 0);
 
-  void addToSequence(float p1, float p2, float p3) {
-    // adding the step to memory
-    if (program_steps < 20) {
+  float turn_dist = 0;
+  float ride_dist = 10 * floatFrom_01 / wheel_lenght;
+  float Alpha = floatFrom_02;
 
-      memoryL[program_steps] = p1;
-      memoryA[program_steps] = p2;
-      mempryS[program_steps] = p3;
-
-      program_steps++;
-      Serial.print("Step added, total: ");
-      Serial.print(program_steps);
-      Serial.println(" steps");
-
-    }
-    else Serial.print("Memory full");
+  if (Alpha != 0 ) {
+    turn_dist = Alpha * turn_const * 0.5; // 0.5 as we add to one wheel and substract form the other
   }
 
-  void goStop() {
-    // emergency stop asap
+  Serial.print( ride_dist);
+  Serial.print(",");
+  Serial.println( turn_dist);
+
+
+  if ( (ride_dist < 0 && stop_back) || (ride_dist > 0 && stop_front)) {
+    ride_dist = 0;
+  }
+
+
+  long right = (long) (-1 * (ride_dist + turn_dist) * pulses_per_step);
+  long left = (long) ((ride_dist - turn_dist) * pulses_per_step);
+
+
+
+  Serial.print( right);
+  Serial.print(",");
+  Serial.println( left);
+
+
+  if (abs(right) < abs(left)) {
+    // need to recalc speeds to besure getther in the sametime
+
+    stepper1.setMaxSpeed( max_speed * (abs((float)right) / abs((float)left)) );
+    stepper1.setAcceleration( accl * (abs((float)right) / abs((float)left)) );
+
+    stepper2.setMaxSpeed( max_speed );
+    stepper2.setAcceleration( accl);
+  }
+  if (abs(right) > abs(left)) {
+    // need to recalc speeds to besure getther in the sametime
+    stepper2.setMaxSpeed( max_speed * (abs((float)left) / abs((float)right)) );
+    stepper2.setAcceleration( accl * (abs((float)left) / abs((float)right)) );
+
+    stepper1.setMaxSpeed( max_speed );
+    stepper1.setAcceleration( accl);
+  }
+  if (abs(right) == abs(left)) {
+    // need to recalc speeds to besure getther in the sametime
+    stepper1.setMaxSpeed( max_speed );
+    stepper1.setAcceleration( accl );
+
+    stepper2.setMaxSpeed( max_speed );
+    stepper2.setAcceleration( accl );
+  }
+
+  // PB3 is for !enable
+  PORTB &= 0b11111011;
+
+  Serial.print(stepper1.maxSpeed());
+  Serial.print(",");
+  Serial.print(stepper2.maxSpeed());
+
+
+  stepper1.move(right);
+  stepper2.move(left);
+
+
+} // end of goNormal
+
+
+// timer int subroutine
+ISR(TIMER2_COMPA_vect) {
+
+
+
+  //emergency breaking front/back
+  if (going_forward && (stepper1.isRunning() || stepper2.isRunning()) && stop_front) {
+
     stepper1.setAcceleration( 1e3 * accl );
     stepper2.setAcceleration( 1e3 * accl );
 
@@ -416,131 +539,30 @@ void runSequence(bool inloop, bool resumeit) {
 
     stepper1.move(0);
     stepper2.move(0);
+
+    stop_front = false;
+
+  } else if (!going_forward && (stepper1.isRunning() || stepper2.isRunning()) && stop_back) {
+
+    stepper1.setAcceleration( 1e3 * accl );
+    stepper2.setAcceleration( 1e3 * accl );
+
+    stepper1.stop();
+    stepper2.stop();
+
+    PORTB |= 0b00000100;
+
+    stepper1.move(0);
+    stepper2.move(0);
+
+    stop_back = false;
+
+  } else {
+
+
+    stepper1.run();
+    stepper2.run();
+    //  stepper1.runSpeed();
+    //  stepper2.runSpeed();
   }
-
-  void goNormal(float floatFrom_01, float floatFrom_02, float floatFrom_03) {
-
-    // normal move as previously
-    if (floatFrom_03 != 0) {
-      // set new max speed for this move
-
-      max_speed = floatFrom_03;
-      if ( abs(max_speed) > max_speed_limit ) max_speed =  max_speed_limit;
-    }
-
-    going_forward = (floatFrom_01 > 0);
-
-    float turn_dist = 0;
-    float ride_dist = 10 * floatFrom_01 / wheel_lenght;
-    float Alpha = floatFrom_02;
-
-    if (Alpha != 0 ) {
-      turn_dist = Alpha * turn_const * 0.5; // 0.5 as we add to one wheel and substract form the other
-    }
-
-    Serial.print( ride_dist);
-    Serial.print(",");
-    Serial.println( turn_dist);
-
-
-    if ( (ride_dist < 0 && stop_back) || (ride_dist > 0 && stop_front)) {
-      ride_dist = 0;
-    }
-
-
-    long right = (long) (-1 * (ride_dist + turn_dist) * pulses_per_step);
-    long left = (long) ((ride_dist - turn_dist) * pulses_per_step);
-
-
-
-    Serial.print( right);
-    Serial.print(",");
-    Serial.println( left);
-
-
-    if (abs(right) < abs(left)) {
-      // need to recalc speeds to besure getther in the sametime
-
-      stepper1.setMaxSpeed( max_speed * (abs((float)right) / abs((float)left)) );
-      stepper1.setAcceleration( accl * (abs((float)right) / abs((float)left)) );
-
-      stepper2.setMaxSpeed( max_speed );
-      stepper2.setAcceleration( accl);
-    }
-    if (abs(right) > abs(left)) {
-      // need to recalc speeds to besure getther in the sametime
-      stepper2.setMaxSpeed( max_speed * (abs((float)left) / abs((float)right)) );
-      stepper2.setAcceleration( accl * (abs((float)left) / abs((float)right)) );
-
-      stepper1.setMaxSpeed( max_speed );
-      stepper1.setAcceleration( accl);
-    }
-    if (abs(right) == abs(left)) {
-      // need to recalc speeds to besure getther in the sametime
-      stepper1.setMaxSpeed( max_speed );
-      stepper1.setAcceleration( accl );
-
-      stepper2.setMaxSpeed( max_speed );
-      stepper2.setAcceleration( accl );
-    }
-
-    // PB3 is for !enable
-    PORTB &= 0b11111011;
-
-    Serial.print(stepper1.maxSpeed());
-    Serial.print(",");
-    Serial.print(stepper2.maxSpeed());
-
-
-    stepper1.move(right);
-    stepper2.move(left);
-
-
-  } // end of goNormal
-
-
-  // timer int subroutine
-  ISR(TIMER2_COMPA_vect) {
-    //emergency breaking front/back
-    if (going_forward && (stepper1.isRunning() || stepper2.isRunning()) && stop_front) {
-
-      stepper1.setAcceleration( 1e3 * accl );
-      stepper2.setAcceleration( 1e3 * accl );
-
-      stepper1.stop();
-      stepper2.stop();
-
-      PORTB |= 0b00000100;
-
-      stepper1.move(0);
-      stepper2.move(0);
-
-      stop_front = false;
-
-    } else if (!going_forward && (stepper1.isRunning() || stepper2.isRunning()) && stop_back) {
-
-      stepper1.setAcceleration( 1e3 * accl );
-      stepper2.setAcceleration( 1e3 * accl );
-
-      stepper1.stop();
-      stepper2.stop();
-
-      PORTB |= 0b00000100;
-
-      stepper1.move(0);
-      stepper2.move(0);
-
-      stop_back = false;
-
-    } else {
-
-
-      stepper1.run();
-      stepper2.run();
-      //  stepper1.runSpeed();
-      //  stepper2.runSpeed();
-    }
-  }
-
-
-  
+}

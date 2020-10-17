@@ -27,10 +27,16 @@ class Paint(object):
         # self.brush_button.grid(row=0, column=1)
 
         self.color_button = Button(self.root, text='Upload', command=self.sent_serial)
-        self.color_button.grid(row=0, column=2)
+        self.color_button.grid(row=0, column=1)
 
-        self.eraser_button = Button(self.root, text='GO', command=self.go)
-        self.eraser_button.grid(row=0, column=3)
+        self.go_button = Button(self.root, text='GO', command=self.go)
+        self.go_button.grid(row=0, column=2)
+
+        self.loop_button = Button(self.root, text='GO Loop', command=self.goLoop)
+        self.loop_button.grid(row=0, column=3)
+
+        self.S_button = Button(self.root, text='STOP', command=self.S)
+        self.S_button.grid(row=0, column=4)
 
         self.eraser_button = Button(self.root, text='cl.Prog', command=self.clearDz3)
         self.eraser_button.grid(row=0, column=5)
@@ -38,11 +44,12 @@ class Paint(object):
         self.eraser_button = Button(self.root, text='Clear', command=self.clear)
         self.eraser_button.grid(row=0, column=6)
 
-        self.choose_size_button = Scale(self.root, from_=1, to=10, orient=HORIZONTAL)
-        self.choose_size_button.grid(row=0, column=4)
+        self.choose_size_button = Scale(self.root, from_=1, to=100, orient=VERTICAL)
+        self.choose_size_button.set(10)
+        self.choose_size_button.grid(row=1, column=9, rowspan=5,sticky='NSEW')
 
         self.c = Canvas(self.root, bg='white', width=800, height=800)
-        self.c.grid(row=1, columnspan=9)
+        self.c.grid(row=1, columnspan=9, rowspan=5)
 
         # somestuff to try straightline things
         self.points = [];
@@ -183,7 +190,7 @@ class Paint(object):
             dX = point[0] - (self.points[-2][0])
             dY = (self.points[-2][1]) - point[1]
 
-            dL = math.sqrt( dX**2 +dY**2 ) * self.drivescale / 10
+            dL = math.sqrt( dX**2 +dY**2 ) * self.drivescale / 100
             
             dA = math.degrees(math.atan2(dY, dX))
             if len(self.commands) > 0:
@@ -216,12 +223,22 @@ class Paint(object):
     
             
     def go(self):
-        
         # sent the GO command
         message = f'<30,0,0,0>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
+
+    def S(self):
+        # sent the GO command
+        message = f'<0,0,0,0>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
   
+    def goLoop(self):
+        # sent the GO command
+        message = f'<33,0,0,0>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
 
     def clear(self):
         self.c.delete(self.origin)
