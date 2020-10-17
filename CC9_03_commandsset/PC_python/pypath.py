@@ -15,6 +15,8 @@ class Paint(object):
 
     DEFAULT_PEN_SIZE = 5.0
     DEFAULT_COLOR = 'black'
+    WIDTH = 800
+    HEIGHT = 800
 
     def __init__(self):
         self.root = Tk()
@@ -44,20 +46,25 @@ class Paint(object):
         self.eraser_button = Button(self.root, text='Clear', command=self.clear)
         self.eraser_button.grid(row=0, column=6)
 
-        self.choose_size_button = Scale(self.root, from_=1, to=100, orient=VERTICAL)
-        self.choose_size_button.set(10)
+        self.choose_size_button = Scale(self.root, from_=1, to=100, orient=VERTICAL, command=self.theGrid)
+        self.choose_size_button.set(36)
         self.choose_size_button.grid(row=1, column=9, rowspan=5,sticky='NSEW')
 
-        self.c = Canvas(self.root, bg='white', width=800, height=800)
+        self.c = Canvas(self.root, bg='white', width=self.WIDTH, height=self.HEIGHT)
         self.c.grid(row=1, columnspan=9, rowspan=5)
 
         # somestuff to try straightline things
         self.points = [];
         self.lines = [];
+        self.joints = [];
+        self.txt = [];
         self.arclines = [];
         self.origin = None;
 
         self.commands = [];
+
+        # stuff for grid
+        self.gridlines= [];
         
         #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
         try:
@@ -83,6 +90,43 @@ class Paint(object):
         self.c.bind('<ButtonRelease-1>', self.pointerUp)
         # trying to makepossible to draw arcs
         # self.c.bind('<ButtonRelease-3>', self.pointerArc)
+        self.theGrid(self.choose_size_button.get());
+
+    def theGrid(self, scaleval):
+        
+        if len(self.gridlines) > 0:
+            for gline in self.gridlines:
+                self.c.delete(gline)
+
+        spc100cm = 10 * 100 / self.choose_size_button.get() #100cm in pixels
+
+        nX = self.WIDTH // spc100cm
+        nY = self.HEIGHT // spc100cm
+
+        print(spc100cm,nX);
+
+        for x in range(int(nX+2)):
+            kolor = 'gray'
+            grubosc = 1
+            if (x % 10 == 0):
+                kolor = 'blue'
+                grubosc = 2
+
+            self.gridlines.append( self.c.create_line( int(x*spc100cm), 0, int(x*spc100cm), self.HEIGHT,
+                               width=grubosc, fill=kolor,
+                               capstyle=ROUND, smooth=TRUE, splinesteps=36) )
+        
+        for y in range(int(nY+2)):
+            kolor = 'gray'
+            grubosc = 1
+            if (y % 10 == 0):
+                kolor = 'blue'
+                grubosc = 2
+
+            self.gridlines.append( self.c.create_line( 0, int(y*spc100cm), self.WIDTH, int(y*spc100cm),
+                               width=grubosc, fill=kolor,
+                               capstyle=ROUND, smooth=TRUE, splinesteps=36) )
+
 
     def _create_arc(self, canvas, p0, p1, angle):
         extend_x = (self._distance(p0,p1) -(p1[0]-p0[0]))/2 # extend x boundary 
@@ -191,6 +235,16 @@ class Paint(object):
             dY = (self.points[-2][1]) - point[1]
 
             dL = math.sqrt( dX**2 +dY**2 ) * self.drivescale / 100
+
+            # adding txt to the plot for easyreference.
+            mX = (point[0] + self.points[-2][0]) / 2
+            mY = (point[1] + self.points[-2][1]) / 2
+
+            self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
+                        text=f"{int(dL)}cm"))
+
+            self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
+            fill=None, width=2) )
             
             dA = math.degrees(math.atan2(dY, dX))
             if len(self.commands) > 0:
@@ -204,6 +258,8 @@ class Paint(object):
                 A = 360 + A
             elif A > 180:
                 A = A - 360
+
+            # adding thisline as 2 commands - 1-turn - 2 move
             self.commands.append((0,A,0,dA))
             print(self.commands[-1])
             self.commands.append((dL,0,0,dA))
@@ -218,7 +274,7 @@ class Paint(object):
             message = f'<20,{int(command[0])},{int(command[1])},{int(command[2])}>'
             self.ser.write(message.encode('utf-8'))
             print(message.encode('utf-8'))
-            sleep(0.02)
+            sleep(0.05)
 
     
             
@@ -242,11 +298,17 @@ class Paint(object):
 
     def clear(self):
         self.c.delete(self.origin)
+
         for lin in self.lines:
             self.c.delete(lin)
+        for txt in self.txt:
+            self.c.delete(txt)
+        for joint in self.joints:
+            self.c.delete(joint)
 
         self.points = [];
         self.lines = [];
+        self.txt = [];
         self.commands = [];
         self.origin = None;
 
@@ -265,10 +327,14 @@ class Paint(object):
     def undo(self):
         if len(self.lines) > 0:
             self.c.delete(self.lines[-1])
+            self.c.delete(self.txt[-1])
+            self.c.delete(self.joints[-1])
             del self.lines[-1]
             del self.points[-1]
             del self.commands[-1] # 2x as we add two commands in each step.
             del self.commands[-1]
+            del self.txt[-1]
+            del self.joints[-1]
 
             if len(self.lines) == 0:
                 self.old_x, self.old_y = None, None
