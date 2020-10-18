@@ -174,7 +174,7 @@ class Paint(object):
 
         for n in range(int(2*nX)):
             
-            sx, sy = self.projection((10 * (n-1), 10 * (n-1)))
+            sx, sy = self.projection((10 * (n-1) - 10*(nX // 2), 10 * (n-1) - 10*(nX // 2)))
 
             kolor = 'gray'
             grubosc = 1
