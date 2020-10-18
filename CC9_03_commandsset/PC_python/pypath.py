@@ -107,8 +107,8 @@ class Paint(object):
         self.c.bind('<B3-Motion>', self.movecanvas)
         self.c.bind('<Button-3>', self.setmove)
         self.c.bind('<MouseWheel>', self.zoom)
-        self.c.bind('<Button-4>', self.zoomIn)
-        self.c.bind('<Button-5>', self.zoomOut)
+        self.c.bind('<Button-5>', self.zoomIn)
+        self.c.bind('<Button-4>', self.zoomOut)
 
         # trying to makepossible to draw arcs
         # self.c.bind('<ButtonRelease-3>', self.pointerArc)
@@ -377,7 +377,14 @@ class Paint(object):
             message = f'<20,{int(command[0])},{int(command[1])},{int(command[2])}>'
             self.ser.write(message.encode('utf-8'))
             print(message.encode('utf-8'))
-            sleep(0.05)
+            # sleep(0.05)
+            # device.timeout=None
+            # waiting for propper respondbefore next one
+            while (True):
+                response = str(self.ser.readline())
+                if "Step added" in response:
+                    print("Command confirmed!")
+                    break
 
     
             
