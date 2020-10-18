@@ -65,6 +65,12 @@ class Paint(object):
 
         # stuff for grid
         self.gridlines= [];
+
+        # moving the world around
+        self.translate = (0,0);
+        self.oldtranslate= (0,0);
+        self.intranslate = False;
+        self.translateclick= (0,0);
         
         #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
         try:
@@ -76,7 +82,17 @@ class Paint(object):
         self.setup()
         self.root.mainloop()
 
+    def zoom(self,event):
+        self.choose_size_button.set(self.choose_size_button.get() + event.delta);
+        pass
 
+    def zoomIn(self, event):
+        self.choose_size_button.set(self.choose_size_button.get() + 1);
+        pass
+
+    def zoomOut(self,event):
+        self.choose_size_button.set(self.choose_size_button.get() - 1);
+        pass
 
     def setup(self):
         self.old_x = None
@@ -88,9 +104,53 @@ class Paint(object):
         self.active_button = self.pen_button
         self.c.bind('<B1-Motion>', self.pointer)
         self.c.bind('<ButtonRelease-1>', self.pointerUp)
+        self.c.bind('<B3-Motion>', self.movecanvas)
+        self.c.bind('<Button-3>', self.setmove)
+        self.c.bind('<MouseWheel>', self.zoom)
+        self.c.bind('<Button-4>', self.zoomIn)
+        self.c.bind('<Button-5>', self.zoomOut)
+
         # trying to makepossible to draw arcs
         # self.c.bind('<ButtonRelease-3>', self.pointerArc)
         self.theGrid(self.choose_size_button.get());
+    
+    def setmove(self, event):
+        localscale = 1/(self.choose_size_button.get() /100)
+        self.translateclick = (event.x / localscale, event.y / localscale)
+        self.oldtranslate = self.translate
+        print(self.translateclick)
+
+
+    def resetmove(self):
+        pass
+
+    def movecanvas(self, event):
+        # this procedure is to move the canvas around
+        localscale = 1/(self.choose_size_button.get() /100)
+        
+        x0, y0 = self.translateclick
+        x, y = self.oldtranslate 
+        # x0 = x
+        # y0 = y
+
+        x += (event.x / localscale) - x0
+        y += (event.y / localscale) - y0 
+        
+        self.translate = (x, y)
+
+        self.theGrid(1)  
+
+    def projection(self,point):
+        #  grabbing the scale
+        localscale = 1/(self.choose_size_button.get() /100)
+        shift_x, shift_y = self.translate;
+
+        x,y = point;
+        #  moving and scaling
+        x = (x + shift_x) * localscale;
+        y = (y + shift_y) * localscale;
+
+        return (x, y)
 
     def theGrid(self, scaleval):
         
@@ -104,32 +164,55 @@ class Paint(object):
 
         spc100cm = 10 * 100 / self.choose_size_button.get() #100cm in pixels
 
+
         nX = self.WIDTH // spc100cm
         nY = self.HEIGHT // spc100cm
 
         print(spc100cm,nX);
 
-        for x in range(int(nX+2)):
-            kolor = 'gray'
-            grubosc = 1
-            if (x % 10 == 0):
-                kolor = 'blue'
-                grubosc = 2
-
-            self.gridlines.append( self.c.create_line( int(x*spc100cm), 0, int(x*spc100cm), self.HEIGHT,
-                               width=grubosc, fill=kolor,
-                               capstyle=ROUND, smooth=TRUE, splinesteps=36) )
         
-        for y in range(int(nY+2)):
+
+        for n in range(int(2*nX)):
+            
+            sx, sy = self.projection((10 * (n-1), 10 * (n-1)))
+
             kolor = 'gray'
             grubosc = 1
-            if (y % 10 == 0):
+
+            if (n % 10 == 0):
                 kolor = 'blue'
                 grubosc = 2
 
-            self.gridlines.append( self.c.create_line( 0, int(y*spc100cm), self.WIDTH, int(y*spc100cm),
+            self.gridlines.append( self.c.create_line( sx, 0, sx, self.HEIGHT,
                                width=grubosc, fill=kolor,
                                capstyle=ROUND, smooth=TRUE, splinesteps=36) )
+
+            self.gridlines.append( self.c.create_line( 0, sy, self.WIDTH, sy,
+                               width=grubosc, fill=kolor,
+                               capstyle=ROUND, smooth=TRUE, splinesteps=36) )
+
+
+        # for x in range(int(nX+2)):
+        #     kolor = 'gray'
+        #     grubosc = 1
+        #     if (x % 10 == 0):
+        #         kolor = 'blue'
+        #         grubosc = 2
+
+        #     self.gridlines.append( self.c.create_line( int(x*spc100cm), 0, int(x*spc100cm), self.HEIGHT,
+        #                        width=grubosc, fill=kolor,
+        #                        capstyle=ROUND, smooth=TRUE, splinesteps=36) )
+        
+        # for y in range(int(nY+2)):
+        #     kolor = 'gray'
+        #     grubosc = 1
+        #     if (y % 10 == 0):
+        #         kolor = 'blue'
+        #         grubosc = 2
+
+        #     self.gridlines.append( self.c.create_line( 0, int(y*spc100cm), self.WIDTH, int(y*spc100cm),
+        #                        width=grubosc, fill=kolor,
+        #                        capstyle=ROUND, smooth=TRUE, splinesteps=36) )
 
 
     def _create_arc(self, canvas, p0, p1, angle):
@@ -205,31 +288,33 @@ class Paint(object):
 
     def pointerUp(self,event):
         self.drivescale = self.choose_size_button.get() /100
+        shift_x, shift_y = self.translate;
+
         if not self.old_x and not self.old_y:
-            _x = event.x * self.drivescale 
-            _y = event.y * self.drivescale 
+            _x = event.x * self.drivescale - shift_x
+            _y = event.y * self.drivescale - shift_y 
             
             self.old_x = _x
             self.old_y = _y 
             
             self.points.append((_x, _y))
 
-            _x /= self.drivescale
-            _y /= self.drivescale    
+            _x, _y = self.projection((_x, _y))   
 
             self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
             fill=None, width=2)
 
         else:
-            _x = event.x * self.drivescale 
-            _y = event.y * self.drivescale 
+            _x = event.x * self.drivescale - shift_x
+            _y = event.y * self.drivescale - shift_y
             
             
             self.points.append((_x, _y))
 
-           
-            self.lines.append(self.c.create_line(self.old_x/self.drivescale, self.old_y/self.drivescale, 
-                               _x/self.drivescale, _y/self.drivescale,
+            lx1, ly1 = self.projection( (self.old_x, self.old_y) )
+            lx2, ly2 = self.projection( (_x,_y) )
+
+            self.lines.append(self.c.create_line(lx1, ly1, lx2, ly2,
                                width=self.line_width, fill='red',
                                capstyle=ROUND, smooth=TRUE, splinesteps=36))
            
@@ -251,14 +336,15 @@ class Paint(object):
             dL = math.sqrt( dX**2 +dY**2 ) #* self.drivescale / 100
 
             # adding txt to the plot for easyreference.
-            mX = ((point[0] + self.points[-2][0]) / 2) / self.drivescale
-            mY = ((point[1] + self.points[-2][1]) / 2) / self.drivescale
+            mX = ((point[0] + self.points[-2][0]) / 2)
+            mY = ((point[1] + self.points[-2][1]) / 2)
+
+            mX, mY = self.projection( (mX, mY) )
 
             self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
                         text=f"{int(dL)}cm"))
 
-            cX /= self.drivescale
-            cY /= self.drivescale
+            cX, cY = self.projection( (cX, cY) )
 
             self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
             fill=None, width=2) )
@@ -324,28 +410,21 @@ class Paint(object):
             self.c.delete(joint)
 
     def reDraw(self):
-        #  grabbing the scale
-        localscale = 1/(self.choose_size_button.get() /100)
+        
         # drawing origin oval
         if len(self.points) > 0:
-            _x, _y = self.points[0] 
-            _x *= localscale
-            _y *= localscale
-
+            _x, _y = self.projection(self.points[0]) 
+            
             self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
                 fill=None, width=2)
             
             for i,point in enumerate(self.points):
                 if i > 0:
-                    cX, cY = point
-                    cX *= localscale
-                    cY *= localscale
+                    cX, cY = self.projection(point)
                     self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
                                         fill=None, width=2) )
                     
-                    _x,_y = self.points[i-1]
-                    _x *= localscale
-                    _y *= localscale
+                    _x,_y = self.projection(self.points[i-1])
 
                     self.lines.append(self.c.create_line(_x, _y, cX, cY,
                                width=self.line_width, fill='red',
