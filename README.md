@@ -26,6 +26,7 @@ where:
 ### Available commands:
 - 0 - STOP, just stop the action asap. Other params ignored, can be used as <0>.
 - 1 - FREE MOVE - just make the move based on te parameters.
+- 8 - SOFT STOP - easy breaking with deflult acceleration. Other params ignored, can be used as <8>.
 - 9 - UNDO  MOVE - move back to previous location.Other params ignored, can be used as <9>
 - 
 - 20 - ADD to SEQUENCE - adding the parameters as next move in sequence. This dont make the robot moves, just add to the memory
