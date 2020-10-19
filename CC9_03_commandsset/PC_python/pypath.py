@@ -53,6 +53,27 @@ class Paint(object):
         self.c = Canvas(self.root, bg='white', width=self.WIDTH, height=self.HEIGHT)
         self.c.grid(row=1, columnspan=9, rowspan=5)
 
+        # control buttons 
+        self.go_up = Button(self.root, text='Up')
+        self.go_up.grid(row=2, column=11)
+        self.go_up.bind("<ButtonPress>", self.goUp)
+        self.go_up.bind("<ButtonRelease>", self.goStop)
+
+        self.go_dn = Button(self.root, text='Dn')
+        self.go_dn.grid(row=3, column=11)
+        self.go_dn.bind("<ButtonPress>", self.goDn)
+        self.go_dn.bind("<ButtonRelease>", self.goStop)
+
+        self.go_left = Button(self.root, text='<<')
+        self.go_left.grid(row=3, column=10)
+        self.go_left.bind("<ButtonPress>", self.goLeft)
+        self.go_left.bind("<ButtonRelease>", self.goStop)
+
+        self.go_right = Button(self.root, text='>>')
+        self.go_right.grid(row=3, column=12)
+        self.go_right.bind("<ButtonPress>", self.goRight)
+        self.go_right.bind("<ButtonRelease>", self.goStop)
+
         # somestuff to try straightline things
         self.points = [];
         self.lines = [];
@@ -81,6 +102,38 @@ class Paint(object):
 
         self.setup()
         self.root.mainloop()
+
+    def goUp(self, *args):
+        message = f'<1,500,0,9999>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
+
+    def goLeft(self, *args):
+        message = f'<1,0,360,300>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
+
+    def goRight(self, *args):
+        message = f'<1,0,-360,300>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
+
+    def goDn(self, *args):
+        message = f'<1,-500,0,9999>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
+
+    def goStop(self, *args):
+        message = f'<8,0,0,2000>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
+
+
+    def S(self, *args):
+        # sent the GO command
+        message = f'<0,0,0,0>'
+        self.ser.write(message.encode('utf-8'))
+        print(message.encode('utf-8'))
 
     def zoom(self,event):
         self.choose_size_button.set(self.choose_size_button.get() + event.delta);
@@ -394,11 +447,7 @@ class Paint(object):
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 
-    def S(self):
-        # sent the GO command
-        message = f'<0,0,0,0>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+    
   
     def goLoop(self):
         # sent the GO command
