@@ -104,7 +104,7 @@ class Paint(object):
         self.root.mainloop()
 
     def goUp(self, *args):
-        message = f'<1,500,0,0>'
+        message = f'<1,500,0,9999>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 
@@ -119,12 +119,12 @@ class Paint(object):
         print(message.encode('utf-8'))
 
     def goDn(self, *args):
-        message = f'<1,-500,0,0>'
+        message = f'<1,-500,0,9999>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 
     def goStop(self, *args):
-        message = f'<1,0,0,2000>'
+        message = f'<8,0,0,2000>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 

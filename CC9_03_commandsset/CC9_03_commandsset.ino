@@ -168,6 +168,11 @@ void loop() {
 
         break;
 
+      case 8:
+        // soft stop action
+        goSoftStop();
+        break;
+
       case 9:
         // undo last move
         goNormal(-lastL, -lastA, 0);// moving back
@@ -438,6 +443,18 @@ void goStop() {
 
   stepper1.move(0);
   stepper2.move(0);
+}
+
+void goSoftStop() {
+  
+  // emergency stop asap
+  stepper1.setAcceleration( accl );
+  stepper2.setAcceleration( accl );
+
+  stepper1.stop();
+  stepper2.stop();
+
+
 }
 
 void goNormal(float floatFrom_01, float floatFrom_02, float floatFrom_03) {
