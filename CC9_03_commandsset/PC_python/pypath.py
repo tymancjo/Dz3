@@ -9,7 +9,8 @@ def elliptical_arc(canvas, x, y, r1, r2, t0, t1, width):
     return canvas.create_arc(x-r1, y-r2, x+r1, y+r2, start=t0, extent=t1-t0,
                              style='arc', width=width)
 
-   
+def myround(x, base=5):
+    return base * round(x/base) 
 
 class Paint(object):
 
@@ -48,39 +49,53 @@ class Paint(object):
 
         self.choose_size_button = Scale(self.root, from_=1, to=100, orient=VERTICAL, command=self.theGrid)
         self.choose_size_button.set(36)
-        self.choose_size_button.grid(row=1, column=9, rowspan=5,sticky='NSEW')
+        self.choose_size_button.grid(row=1, column=9, rowspan=10,sticky='NSEW')
 
         self.c = Canvas(self.root, bg='white', width=self.WIDTH, height=self.HEIGHT)
-        self.c.grid(row=1, columnspan=9, rowspan=5)
+        self.c.grid(row=1, columnspan=9, rowspan=10)
 
         # control buttons 
         self.go_up = Button(self.root, text='Up')
-        self.go_up.grid(row=2, column=11)
+        self.go_up.grid(row=8, column=11)
         self.go_up.bind("<ButtonPress>", self.goUp)
         self.go_up.bind("<ButtonRelease>", self.goStop)
 
         self.go_dn = Button(self.root, text='Dn')
-        self.go_dn.grid(row=3, column=11)
+        self.go_dn.grid(row=9, column=11)
         self.go_dn.bind("<ButtonPress>", self.goDn)
         self.go_dn.bind("<ButtonRelease>", self.goStop)
 
         self.go_left = Button(self.root, text='<<')
-        self.go_left.grid(row=3, column=10)
+        self.go_left.grid(row=9, column=10)
         self.go_left.bind("<ButtonPress>", self.goLeft)
         self.go_left.bind("<ButtonRelease>", self.goStop)
 
         self.go_right = Button(self.root, text='>>')
-        self.go_right.grid(row=3, column=12)
+        self.go_right.grid(row=9, column=12)
         self.go_right.bind("<ButtonPress>", self.goRight)
         self.go_right.bind("<ButtonRelease>", self.goStop)
 
         # anglelabel stuff
-        self.anglelabel = Label(self.root, text = "Angle: ")
-        self.anglelabel.grid(row=1, column=11)
+        self.alphatxt = Label(self.root, text = "Turning by angle ")
+        self.alphatxt.grid(row=1, column=10)
+        self.alpha_slider = Scale(self.root, from_=360, to=-360, orient=HORIZONTAL, command=self.getAlpha)
+        self.alpha_slider.set(90)
+        self.alpha_slider.grid(row=2, column=10, columnspan=4,sticky='NSEW')
+
+        self.Rtxt = Label(self.root, text = "Turning Radius ")
+        self.Rtxt.grid(row=3, column=10)
+        self.R_slider = Scale(self.root, from_=20, to=200, orient=HORIZONTAL, command=self.getR)
+        self.R_slider.set(30)
+        self.R_slider.grid(row=4, column=10, columnspan=4,sticky='NSEW')
+
+        self.anglelabeltxt = Label(self.root, text = "Current Angle: ")
+        self.anglelabeltxt.grid(row=6, column=10)
+        self.anglelabel = Label(self.root, text = "0")
+        self.anglelabel.grid(row=6, column=11)
 
         # experimental trigger button
-        self.go_right = Button(self.root, text='ex')
-        self.go_right.grid(row=2, column=22)
+        self.go_right = Button(self.root, text='Add Turn')
+        self.go_right.grid(row=5, column=10)
         self.go_right.bind("<ButtonPress>", self.experimental)
 
         # somestuff to try straightline things
@@ -115,6 +130,12 @@ class Paint(object):
         self.setup()
         self.root.mainloop()
 
+    def getAlpha(self, *args):
+        self.alpha_slider.set(myround(self.alpha_slider.get()))
+
+    def getR(self, *args):
+        self.R_slider.set(myround(self.R_slider.get()))
+
     def experimental(self, *args):
         # usedfor testing purposes
         localscale = 1/(self.choose_size_button.get() /100)
@@ -124,10 +145,10 @@ class Paint(object):
         theta = math.radians( self.globalAngle )
         theta_d = self.globalAngle
         
-        alpha = -45
+        alpha = myround(self.alpha_slider.get())
         alpha_r = math.radians( alpha )
 
-        R = 35
+        R = myround(self.R_slider.get())
 
         znak = -1 * alpha / abs(alpha)
         
@@ -156,9 +177,11 @@ class Paint(object):
         R = R * localscale
         
         if alpha > 0:
-            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha, style=ARC))
+            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha,
+                                                  style=ARC, width=self.line_width, outline='red'))
         else:
-            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-270, extent=alpha, style=ARC))
+            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-270, extent=alpha, 
+                                                  style=ARC, width=self.line_width, outline='red'))
         
         self.joints.append( self.c.create_oval(x2-5,y2-5,x2+5,y2+5))
         
@@ -314,28 +337,6 @@ class Paint(object):
                                width=grubosc, fill=kolor,
                                capstyle=ROUND, smooth=TRUE, splinesteps=36) )
 
-
-        # for x in range(int(nX+2)):
-        #     kolor = 'gray'
-        #     grubosc = 1
-        #     if (x % 10 == 0):
-        #         kolor = 'blue'
-        #         grubosc = 2
-
-        #     self.gridlines.append( self.c.create_line( int(x*spc100cm), 0, int(x*spc100cm), self.HEIGHT,
-        #                        width=grubosc, fill=kolor,
-        #                        capstyle=ROUND, smooth=TRUE, splinesteps=36) )
-        
-        # for y in range(int(nY+2)):
-        #     kolor = 'gray'
-        #     grubosc = 1
-        #     if (y % 10 == 0):
-        #         kolor = 'blue'
-        #         grubosc = 2
-
-        #     self.gridlines.append( self.c.create_line( 0, int(y*spc100cm), self.WIDTH, int(y*spc100cm),
-        #                        width=grubosc, fill=kolor,
-        #                        capstyle=ROUND, smooth=TRUE, splinesteps=36) )
 
     def update(self):
         self.anglelabel.config(text = str(self.globalAngle) )
