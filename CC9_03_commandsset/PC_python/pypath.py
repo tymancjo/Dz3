@@ -74,6 +74,10 @@ class Paint(object):
         self.go_right.bind("<ButtonPress>", self.goRight)
         self.go_right.bind("<ButtonRelease>", self.goStop)
 
+        # anglelabel stuff
+        self.anglelabel = Label(self.root, text = "Angle: ")
+        self.anglelabel.grid(row=1, column=11)
+
         # somestuff to try straightline things
         self.points = [];
         self.lines = [];
@@ -81,6 +85,9 @@ class Paint(object):
         self.txt = [];
         self.arclines = [];
         self.origin = None;
+
+        self.globalAngle = 90; # startring angle 
+        self.globalAngleLast = [self.globalAngle];
 
         self.commands = [];
 
@@ -146,6 +153,16 @@ class Paint(object):
     def zoomOut(self,event):
         self.choose_size_button.set(self.choose_size_button.get() - 1);
         pass
+
+    def arc(self, x, y, r, a1, a2, canvas):
+        # drawing an circle based arc.
+        x0 = x - r
+        y0 = y - r
+        x1 = x + r
+        y1 = y + r
+
+        return canvas.create_oval(x0, y0, x1, y1)
+
 
     def setup(self):
         self.old_x = None
@@ -267,6 +284,8 @@ class Paint(object):
         #                        width=grubosc, fill=kolor,
         #                        capstyle=ROUND, smooth=TRUE, splinesteps=36) )
 
+    def update(self):
+        self.anglelabel.config(text = str(self.globalAngle) )
 
     def _create_arc(self, canvas, p0, p1, angle):
         extend_x = (self._distance(p0,p1) -(p1[0]-p0[0]))/2 # extend x boundary 
@@ -402,7 +421,7 @@ class Paint(object):
             self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
             fill=None, width=2) )
             
-            dA = math.degrees(math.atan2(dY, dX))
+            dA = int(math.degrees(math.atan2(dY, dX)))
             if len(self.commands) > 0:
                 iA = self.commands[-1][3]
             else:
@@ -414,6 +433,12 @@ class Paint(object):
                 A = 360 + A
             elif A > 180:
                 A = A - 360
+
+            # tracking theglobal angle od Dz3
+            self.globalAngleLast.append( self.globalAngle);
+            self.globalAngle += A
+            self.update()
+            
 
             # adding thisline as 2 commands - 1-turn - 2 move
             self.commands.append((0,A,0,dA))
@@ -516,6 +541,10 @@ class Paint(object):
         self.old_x = None
         self.old_y = None
 
+        self.globalAngle = 90;
+
+        self.update();
+
     def clearDz3(self):
         
         message = f'<39,0,0,0>'
@@ -537,6 +566,9 @@ class Paint(object):
             del self.txt[-1]
             del self.joints[-1]
 
+            self.globalAngle = self.globalAngleLast[-1];
+            del self.globalAngleLast[-1];
+
             if len(self.lines) == 0:
                 self.old_x, self.old_y = None, None
                 self.c.delete(self.origin)
@@ -544,5 +576,7 @@ class Paint(object):
             else:
                 self.old_x, self.old_y = self.points[-1]
 
+            self.update();
+            
 if __name__ == '__main__':
     Paint()
