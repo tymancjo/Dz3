@@ -78,6 +78,11 @@ class Paint(object):
         self.anglelabel = Label(self.root, text = "Angle: ")
         self.anglelabel.grid(row=1, column=11)
 
+        # experimental trigger button
+        self.go_right = Button(self.root, text='ex')
+        self.go_right.grid(row=2, column=22)
+        self.go_right.bind("<ButtonPress>", self.experimental)
+
         # somestuff to try straightline things
         self.points = [];
         self.lines = [];
@@ -109,6 +114,54 @@ class Paint(object):
 
         self.setup()
         self.root.mainloop()
+
+    def experimental(self, *args):
+        # usedfor testing purposes
+        localscale = 1/(self.choose_size_button.get() /100)
+
+        x0, y0 = self.points[-1]
+        
+        theta = math.radians( self.globalAngle )
+        theta_d = self.globalAngle
+        
+        alpha = -45
+        alpha_r = math.radians( alpha )
+
+        R = 35
+
+        znak = -1 * alpha / abs(alpha)
+        
+        Cx = x0 + znak * R * math.sin( theta )
+        Cy = y0 + znak * R * math.cos( theta )
+
+        x1 = R * math.sin(alpha_r)
+        y1 = -1* R * (1 - math.cos(alpha_r)) # bo liczymy y jak piksele w dół
+
+        x2 =  x1 * math.cos(theta) + y1 * math.sin(theta)
+        y2 = -x1 * math.sin(theta) + y1 * math.cos(theta)
+
+        x2 =  x0 - znak * x2
+        y2 =  y0 - znak * y2
+
+        print(x1,y1)
+        print(x2,y2)
+
+        self.points.append((x2, y2))
+        self.old_x = x2
+        self.old_y = y2
+
+        # skalowanie do kreślenia 
+        x2,y2 = self.projection((x2,y2))
+        Cx,Cy = self.projection((Cx,Cy))
+        R = R * localscale
+        
+        if alpha > 0:
+            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha, style=ARC))
+        else:
+            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-270, extent=alpha, style=ARC))
+        
+        self.joints.append( self.c.create_oval(x2-5,y2-5,x2+5,y2+5))
+        
 
     def goUp(self, *args):
         message = f'<1,500,0,9999>'
@@ -286,20 +339,6 @@ class Paint(object):
 
     def update(self):
         self.anglelabel.config(text = str(self.globalAngle) )
-
-    def _create_arc(self, canvas, p0, p1, angle):
-        extend_x = (self._distance(p0,p1) -(p1[0]-p0[0]))/2 # extend x boundary 
-        extend_y = (self._distance(p0,p1) -(p1[1]-p0[1]))/2 # extend y boundary
-        
-        startAngle = math.atan2(p0[0] - p1[0], p0[1] - p1[1]) *180 / math.pi # calculate starting angle  
-        
-        canvas.create_arc(p0[0]-extend_x, p0[1]-extend_y , 
-                               p1[0]+extend_x, p1[1]+extend_y, 
-                               extent=angle, start=90+startAngle, style=ARC)
-
-        '''use this rectangle for visualisation'''
-        #self.canvas.create_rectangle(p0[0]-extend_x, p0[1]-extend_y, 
-        #                                p1[0]+extend_x, p1[1]+extend_y)       
 
     def _distance(self, p0, p1):
         '''calculate distance between 2 points'''
