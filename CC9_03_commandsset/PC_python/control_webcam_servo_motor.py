@@ -46,23 +46,25 @@ last_was_zero = False
 dist_to_size = distance_0 * frame_size_at_250mm
 
 Kp_angle = 0.05
-Ki_angle = 0.001
-Kd_angle = 0.1
+Ki_angle = 0.00
+Kd_angle = 0.01
 
 angle_death_zone = 2
 
-Kp_dist = 0.5
+Kp_dist = 0.1
 Ki_dist = 0.0
-Kd_dist = 1.0
+Kd_dist = 0.01
 
 target_distance = 300 #[mm]
-dist_death_zone = 40 #[mm]
+dist_death_zone = 5 #[cm]
 
 # stuff for PID
 turn_error_memory = 0;
 dist_error_memory = 0;
 turn_error_last = 0;
 dist_error_last = 0;
+
+no_ball_loops = 0;
 
 while True:
     _, frame = cap.read()
@@ -98,6 +100,9 @@ while True:
     
     
     if size >= size_treshold:
+        # we have a ball so we reset the no ball counter
+        no_ball_loops = 0;
+
         cv2.line(frame, (x_medium, 0), (x_medium, H), (0, 255, 0), 2)
         cv2.line(frame, (0, y_medium), (W, y_medium), (0, 255, 0), 2)
         
@@ -121,29 +126,37 @@ while True:
         move_distance = 0;
 
         
-        if abs(turn_error) > 30:
+        # if abs(turn_error) > 30:
+        if True:
             turn_angle = int(Kp_angle * turn_error + Ki_angle * turn_error_memory + Kd_angle * turn_error_delta)            
 
-        if abs(dist_error) > 100:
-            move_distance = int(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
+        
+        if abs(turn_angle) < 20:
+        # if True:
+            move_distance = math.ceil(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
 
-        print(move_distance, turn_angle)
+        # print(move_distance, turn_angle)
         # if move_distance != 0 or turn_angle != 0:
         # adding some death zone
         if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
-            message = f'<1,{move_distance // 10}, {turn_angle} ,500>'
+            message = f'<1,{move_distance }, {turn_angle} ,250>'
             print(message.encode('utf-8'))
             last_was_zero = False
             if loop > loopdelay:    
                 loop = 0
                 try:
                     ser.write(message.encode('utf-8'))
+                    while (True):
+                        response = str(ser.readline())
+                        if "command" in response:
+                            # print("Command confirmed!")
+                            break
                 except:
                     pass
         else:
             if not last_was_zero: 
                 message = f'<8,0,0,0>'
-                print(message.encode('utf-8'))
+                # print(message.encode('utf-8'))
                 last_was_zero = True
 
                 if loop > loopdelay:    
@@ -154,9 +167,11 @@ while True:
                         pass
 
     else:
+            # if we didn't already - we send stop command
+            # print(f"No ball for {no_ball_loops} loops")
             if not last_was_zero: 
                 message = f'<8,0,0,0>'
-                print(message.encode('utf-8'))
+                # print(message.encode('utf-8'))
                 last_was_zero = True
 
                 if loop > loopdelay:    
@@ -166,6 +181,11 @@ while True:
                     except:
                         pass
 
+            #  counting for how many loopswe don't see ball
+            no_ball_loops += 1
+            if (no_ball_loops > 100):
+                print("Gimme Ball!!!!")
+            
     
     cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
     cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
