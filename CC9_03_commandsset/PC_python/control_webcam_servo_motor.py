@@ -36,6 +36,16 @@ loop = 0
 size = 0
 size_treshold = 5
 
+red_ball_size = 105 #[mm]
+frame_size_at_250mm = 50 #[percent od screen diag]
+distance_0 = 260 # [mm]
+distance = 0
+
+dist_to_size = distance_0 * frame_size_at_250mm
+
+Kp_angle = 0.1
+Kp_dist = 0.025 
+
 while True:
     _, frame = cap.read()
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -63,6 +73,8 @@ while True:
 
         # calculating the size
         size = 100 * math.sqrt(w**2 + h**2) / diag
+        distance = int(dist_to_size / size) 
+
         x_medium = int(x + w / 2)
         y_medium = int(y + h / 2)
     
@@ -72,20 +84,45 @@ while True:
         cv2.line(frame, (0, y_medium), (W, y_medium), (0, 255, 0), 2)
         
         # moving around
-        _error = center - x_medium;
+        turn_error = center - x_medium;
+        dist_error = distance - 300;
 
-        if abs(_error) > 30:
-            message = f'<1,0,{_error/10},300>'
+        turn_angle = 0;
+        move_distance = 0;
 
+        
+        if abs(turn_error) > 30:
+            turn_angle = int(Kp_angle * turn_error)            
+
+        if abs(dist_error) > 100:
+            move_distance = int(Kp_dist * dist_error)
+
+        # if move_distance != 0 or turn_angle != 0:
+        if True: 
+            message = f'<1,{move_distance}, {turn_angle} ,500>'
+            print(message.encode('utf-8'))
+            
             if loop > loopdelay:    
                 loop = 0
                 try:
                     ser.write(message.encode('utf-8'))
-                    print(message.encode('utf-8'))
                 except:
                     pass
+        else:
+            if True: 
+                message = f'<8,0,0,0>'
+                print(message.encode('utf-8'))
+            
+                if loop > loopdelay:    
+                    loop = 0
+                    try:
+                        ser.write(message.encode('utf-8'))
+                    except:
+                        pass
 
+    
     cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+    cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
     cv2.imshow("Frame", frame)
     
     loop += 1;
