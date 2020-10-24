@@ -18,7 +18,7 @@ except:
 
 cap = cv2.VideoCapture(2)
 
-W, H = (640, 480)
+W, H = (1280 // 2, 720 // 2)
 
 cap.set(3, W)
 cap.set(4, H)
@@ -37,14 +37,32 @@ size = 0
 size_treshold = 5
 
 red_ball_size = 105 #[mm]
-frame_size_at_250mm = 50 #[percent od screen diag]
+frame_size_at_250mm = 43 #[percent od screen diag]
 distance_0 = 260 # [mm]
 distance = 0
 
+last_was_zero = False
+
 dist_to_size = distance_0 * frame_size_at_250mm
 
-Kp_angle = 0.1
-Kp_dist = 0.025 
+Kp_angle = 0.05
+Ki_angle = 0.001
+Kd_angle = 0.1
+
+angle_death_zone = 2
+
+Kp_dist = 0.5
+Ki_dist = 0.0
+Kd_dist = 1.0
+
+target_distance = 300 #[mm]
+dist_death_zone = 40 #[mm]
+
+# stuff for PID
+turn_error_memory = 0;
+dist_error_memory = 0;
+turn_error_last = 0;
+dist_error_last = 0;
 
 while True:
     _, frame = cap.read()
@@ -85,23 +103,37 @@ while True:
         
         # moving around
         turn_error = center - x_medium;
-        dist_error = distance - 300;
+        dist_error = distance - target_distance;
 
+        # for pid's
+        # turning
+        turn_error_memory += turn_error
+        turn_error_delta = turn_error - turn_error_last
+        turn_error_last = turn_error
+        
+        # moving
+        dist_error_memory += dist_error
+        dist_error_delta = dist_error - dist_error_last
+        dist_error_last = dist_error
+
+        
         turn_angle = 0;
         move_distance = 0;
 
         
         if abs(turn_error) > 30:
-            turn_angle = int(Kp_angle * turn_error)            
+            turn_angle = int(Kp_angle * turn_error + Ki_angle * turn_error_memory + Kd_angle * turn_error_delta)            
 
         if abs(dist_error) > 100:
-            move_distance = int(Kp_dist * dist_error)
+            move_distance = int(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
 
+        print(move_distance, turn_angle)
         # if move_distance != 0 or turn_angle != 0:
-        if True: 
-            message = f'<1,{move_distance}, {turn_angle} ,500>'
+        # adding some death zone
+        if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
+            message = f'<1,{move_distance // 10}, {turn_angle} ,500>'
             print(message.encode('utf-8'))
-            
+            last_was_zero = False
             if loop > loopdelay:    
                 loop = 0
                 try:
@@ -109,10 +141,24 @@ while True:
                 except:
                     pass
         else:
-            if True: 
+            if not last_was_zero: 
                 message = f'<8,0,0,0>'
                 print(message.encode('utf-8'))
-            
+                last_was_zero = True
+
+                if loop > loopdelay:    
+                    loop = 0
+                    try:
+                        ser.write(message.encode('utf-8'))
+                    except:
+                        pass
+
+    else:
+            if not last_was_zero: 
+                message = f'<8,0,0,0>'
+                print(message.encode('utf-8'))
+                last_was_zero = True
+
                 if loop > loopdelay:    
                     loop = 0
                     try:
