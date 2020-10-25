@@ -42,21 +42,27 @@ frame_size_at_250mm = 43 #[percent od screen diag]
 distance_0 = 260 # [mm]
 distance = 0
 
+# x shift vs distance calibration
+dist_c = 634
+shift_c = 207
+x_shift_cal = dist_c * shift_c
+x_shift_to_mm = 250/1.02
+
 last_was_zero = False
 
 dist_to_size = distance_0 * frame_size_at_250mm
 
-Kp_angle = 0.05
-Ki_angle = 0.00001
-Kd_angle = 0#0.01
+Kp_angle = 0.02
+Ki_angle = 0.00
+Kd_angle = 0.01
 
 angle_death_zone = 1
 
-Kp_dist = 0.05
-Ki_dist = 0.000005
+Kp_dist = 0.1
+Ki_dist = 0.0
 Kd_dist = 0.01
 
-target_distance = 600 #[mm]
+target_distance = 300 #[mm]
 dist_death_zone = 5 #[cm]
 
 # stuff for PID
@@ -96,7 +102,6 @@ while True:
 
         # calculating the size
         size = 100 * math.sqrt(w**2 + h**2) / diag
-        distance = int(dist_to_size / size) 
 
         x_medium = int(x + w / 2)
         y_medium = int(y + h / 2)
@@ -105,65 +110,86 @@ while True:
     if size >= size_treshold:
         # we have a ball so we reset the no ball counter
         no_ball_loops = 0;
+        
+        distance = int(dist_to_size / size)
+        dist_from_center = center - x_medium 
+        dist_from_center = x_shift_to_mm * dist_from_center / (x_shift_cal / distance)
 
-        cv2.line(frame, (x_medium, 0), (x_medium, H), (0, 255, 0), 2)
-        cv2.line(frame, (0, y_medium), (W, y_medium), (0, 255, 0), 2)
+        alpha = math.degrees(math.atan2(dist_from_center , distance))
+        
+        # print(f"Alpha: {alpha}")
+
+        cv2.line(frame, (x_medium, y_medium), (W // 2, H), (0, 255, 0), 2)
+        
+        cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0), 2)
+        cv2.putText(frame,str(distance), (10,30), cv2.FONT_HERSHEY_PLAIN, 1, (255,255,0), 2)
+        cv2.putText(frame,str(alpha), (10,50), cv2.FONT_HERSHEY_PLAIN, 1, (255,255,0), 2)
+    
+        # cv2.line(frame, (x_medium, 0), (x_medium, H), (0, 255, 0), 2)
+        # cv2.line(frame, (0, y_medium), (W, y_medium), (0, 255, 0), 2)
         
         # moving around
-        turn_error = center - x_medium;
-        dist_error = distance - target_distance;
+        # turn_error = center - x_medium;
+        # dist_error = distance - target_distance;
 
-        # for pid's
-        # turning
-        turn_error_memory += turn_error
-        turn_error_delta = turn_error - turn_error_last
-        turn_error_last = turn_error
+        # # let's calulate the required turn based on distance from camera and the sizemove.
         
-        # moving
-        dist_error_memory += dist_error
-        dist_error_delta = dist_error - dist_error_last
-        dist_error_last = dist_error
 
+        # # for pid's
+        # # turning
+        # turn_error_memory += turn_error
+        # turn_error_delta = turn_error - turn_error_last
+        # turn_error_last = turn_error
         
-        turn_angle = 0;
-        move_distance = 0;
-
-        
-        # if abs(turn_error) > 30:
-        if True:
-            turn_angle = int(Kp_angle * turn_error + Ki_angle * turn_error_memory + Kd_angle * turn_error_delta)            
+        # # moving
+        # dist_error_memory += dist_error
+        # dist_error_delta = dist_error - dist_error_last
+        # dist_error_last = dist_error
 
         
-        # if abs(turn_angle) < 20:
-        if True:
-            move_distance = math.ceil(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
+        # turn_angle = 0;
+        # move_distance = 0;
 
-        # print(move_distance, turn_angle)
+        
+        # # if abs(turn_error) > 30:
+        # if True:
+        #     turn_angle = int(Kp_angle * turn_error + Ki_angle * turn_error_memory + Kd_angle * turn_error_delta)            
+
+        
+        # # if abs(turn_angle) < 20:
+        # if True:
+        #     move_distance = math.ceil(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
+
+        # # print(move_distance, turn_angle)
         # if move_distance != 0 or turn_angle != 0:
         # adding some death zone
+        
+        move_distance = distance
+        turn_angle = int(alpha / 10)
+
         if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
             
             if abs(turn_angle) < angle_death_zone:
                 # if we dont turn we can move
-                message = f'<1,{move_distance }, 0,500>'
-                # message = f'<1,0, 0,500>'
+                # message = f'<1,{move_distance }, 0,500>'
+                message = f'<0,0, 0,500>'
             else:
                 # if we need to turn we just turn
-                message = f'<1,{move_distance // 4}, {turn_angle} ,500>'
+                message = f'<1,0, {turn_angle} ,250>'
                 
             print(message.encode('utf-8'))
 
             last_was_zero = False
             # if loop > loopdelay and last_command != message:    
-            if loop >= loopdelay:    
+            if loop > loopdelay:    
                 loop = 0
                 try:
                     ser.write(message.encode('utf-8'))
-                    # while (True):
-                    #     response = str(ser.readline())
-                    #     if "command" in response:
-                    #         # print("Command confirmed!")
-                    #         break
+                    while (True):
+                        response = str(ser.readline())
+                        if "command" in response:
+                            # print("Command confirmed!")
+                            break
                 except:
                     pass
 
@@ -203,8 +229,6 @@ while True:
                 print("Gimme Ball!!!!")
             
     
-    cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
     cv2.imshow("Frame", frame)
     
     loop += 1;
