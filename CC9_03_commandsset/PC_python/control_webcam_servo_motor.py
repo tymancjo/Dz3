@@ -47,17 +47,17 @@ last_was_zero = False
 dist_to_size = distance_0 * frame_size_at_250mm
 
 Kp_angle = 0.05
-Ki_angle = 0.00001
+Ki_angle = 0.0001
 Kd_angle = 0#0.01
 
 angle_death_zone = 1
 
 Kp_dist = 0.05
-Ki_dist = 0.000005
+Ki_dist = 0.00005
 Kd_dist = 0.01
 
 target_distance = 600 #[mm]
-dist_death_zone = 5 #[cm]
+dist_death_zone = 10 #[cm]
 
 # stuff for PID
 turn_error_memory = 0;
@@ -142,6 +142,7 @@ while True:
         # if move_distance != 0 or turn_angle != 0:
         # adding some death zone
         if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
+            # message = f'<1,{move_distance}, {turn_angle} ,500>'
             
             if abs(turn_angle) < angle_death_zone:
                 # if we dont turn we can move

@@ -84,7 +84,7 @@ class Paint(object):
 
         self.Rtxt = Label(self.root, text = "Turning Radius ")
         self.Rtxt.grid(row=3, column=10)
-        self.R_slider = Scale(self.root, from_=20, to=200, orient=HORIZONTAL, command=self.getR)
+        self.R_slider = Scale(self.root, from_=0, to=100, orient=HORIZONTAL, command=self.getR)
         self.R_slider.set(30)
         self.R_slider.grid(row=4, column=10, columnspan=4,sticky='NSEW')
 
@@ -174,6 +174,7 @@ class Paint(object):
         # skalowanie do kreślenia 
         x2,y2 = self.projection((x2,y2))
         Cx,Cy = self.projection((Cx,Cy))
+        R0 = R
         R = R * localscale
         
         if alpha > 0:
@@ -184,6 +185,20 @@ class Paint(object):
                                                   style=ARC, width=self.line_width, outline='red'))
         
         self.joints.append( self.c.create_oval(x2-5,y2-5,x2+5,y2+5))
+
+        # preparing the command stuff
+
+        dL = abs(int(alpha_r * R0))
+        A = alpha
+        self.globalAngleLast.append( self.globalAngle);
+        self.globalAngle += A
+        dA = self.globalAngle 
+
+        # adding thisline as command
+        self.commands.append((dL,A,700,dA))
+        print(self.commands[-1])
+        # adding commandto reset the speed back after turn slowly
+        self.commands.append((0,0,9999,dA))
         
 
     def goUp(self, *args):
