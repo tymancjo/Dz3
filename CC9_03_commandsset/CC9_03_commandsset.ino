@@ -36,8 +36,8 @@ const int pulses_per_step = 200 * 2;
 boolean newData = false;
 
 // mechanicaldimensions data
-const float A = 172.0;//[mm] dist between wheels (width)
-const float D = 91.0; //[mm] wheel diameter
+const float A = 159.0;//[mm] dist between wheels (width)
+const float D = 90; //[mm] wheel diameter
 const float wheel_lenght = PI * D;
 
 const float turn_const = A / (180.0 * D);
