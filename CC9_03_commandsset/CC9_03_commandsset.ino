@@ -4,12 +4,21 @@
 
 #include <AccelStepper.h>
 #include <MultiStepper.h>
+#include <Servo.h>
+
 
 AccelStepper stepper1(AccelStepper::DRIVER, 8, 9);
 AccelStepper stepper2(AccelStepper::DRIVER, 6, 7);
 
+Servo myservo1;
+Servo myservo2;
+
 #define Front A6
 #define Back A7
+#define Servo1 3
+#define Servo2 5
+
+
 
 // ================================================================
 // ========= Handling serial input ================================
@@ -25,13 +34,13 @@ char messageFromPC[numChars] = {0};
 float param[3];
 int command;
 
-const float max_speed_limit = 1150; // for 1/2 step
-float max_speed = 900; // for 1/2 step
-const float safe_speed = 300; // for 1/2 step
+const float max_speed_limit = 1150 * 4; // for 1/8 step
+float max_speed = 900 * 4; // for 1/8 step
+const float safe_speed = 300 * 4; // for 1/8 step
 
-const float accl = 1000;
+const float accl = 1000 * 4; // for the 1/8 step
 
-const int pulses_per_step = 200 * 2;
+const int pulses_per_step = 200 * 8; // for 1/8 step
 
 boolean newData = false;
 
@@ -66,6 +75,10 @@ float lastA;
 float lastV;
 float newV;
 
+// for servo
+int pos1 = 0;
+int pos2 = 0;
+
 
 
 // ================================================================
@@ -91,6 +104,9 @@ void setup() {
   OCR2A = 100  - 1;
   TCCR2A |= (1 << WGM21);
 
+  // trying thisfor servo jitter fix
+  //TIMSK0=0;
+
   // setting up the pins used for motors
   //  pinMode(6, OUTPUT);
   //  pinMode(7, OUTPUT);
@@ -101,6 +117,15 @@ void setup() {
   pinMode(Front, INPUT_PULLUP);
   pinMode(Back, INPUT_PULLUP);
 
+  pinMode(3, OUTPUT);
+  pinMode(5, OUTPUT);
+
+  myservo1.attach(3);
+  myservo2.attach(5); 
+  myservo1.write(pos1);
+  myservo2.write(pos2);
+  
+  
 
 
   //DEFINING MOTORS
@@ -240,6 +265,26 @@ void loop() {
 
         break;
 
+      case 41:
+        // set servo1 position
+        // analogWrite(Servo1, map(param[0], 0,180,0,255));
+        pos1 = (int) constrain(param[0], 0,180);
+        myservo1.write(pos1); 
+        Serial.print(pos1);
+        Serial.println(" servo1, #D");
+        
+        break;
+
+      case 42:
+        // set servo2 position
+        // analogWrite(Servo2, map(param[0], 0,180,0,255));
+        pos2 = (int) constrain(param[0], 0,180);
+        myservo2.write(pos2);
+        
+        Serial.print(pos2);
+        Serial.println(" servo2, #D");
+        break;
+        
       default:
         // statements
         break;
