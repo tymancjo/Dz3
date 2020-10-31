@@ -230,7 +230,7 @@ while True:
             
             if abs(turn_angle) < angle_death_zone:
                 # if we dont turn we can move
-                message = f'<1,{move_distance }, 0,1250>'
+                message = f'<1,{move_distance }, 0,800>'
             else:
                 # if we need to turn we just turn
                 message = f'<1,{move_distance // 4}, {turn_angle} ,2000>'
@@ -302,6 +302,7 @@ while True:
                 print("Gimme Ball!!!!")
                 
                 if boring_loops > 30:
+                    boring_loops = 0
                     # if we wait long we search around
                     message = f'<1,0,360,500>'
                     print(message.encode('utf-8'))
