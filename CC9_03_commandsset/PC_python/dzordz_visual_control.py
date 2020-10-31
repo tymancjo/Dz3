@@ -225,6 +225,14 @@ while True:
         # calculating PID for moving
         move_distance = math.ceil(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
 
+        # experimental - loking for a way to get rid of the hickup-moves
+        # the idea is - if we want to move less than the last time, let's just don't sent another
+        # move command.
+         
+        if abs(move_distance) < abs(last_distance) and move_distance / abs(move_distance) != last_distance / abs(last_distance):
+            move_distance = 0
+        
+        
         # adding some general death zone
         if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
             message = f'<1,{move_distance }, {turn_angle},1600>'
