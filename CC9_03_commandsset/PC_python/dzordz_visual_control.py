@@ -262,8 +262,10 @@ while True:
 
         else:
             # if we don't need to move - we send the command to stop
+            # new experimental idea for soft stop to move 1/5 of last move
             if not last_was_zero: 
-                message = f'<8,0,0,0>'
+                # message = f'<8,0,0,0>'
+                message = f'<1,{last_distance // 5},{last_angle // 4},750>'
                 print(message.encode('utf-8'))
                 last_was_zero = True
 
