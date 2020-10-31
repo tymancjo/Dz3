@@ -227,13 +227,14 @@ while True:
 
         # adding some general death zone
         if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
+            message = f'<1,{move_distance }, {turn_angle},1600>'
             
-            if abs(turn_angle) < angle_death_zone:
-                # if we dont turn we can move
-                message = f'<1,{move_distance }, 0,800>'
-            else:
-                # if we need to turn we just turn
-                message = f'<1,{move_distance // 4}, {turn_angle} ,2000>'
+            # if abs(turn_angle) < angle_death_zone:
+                # # if we dont turn we can move
+                # message = f'<1,{move_distance }, {turn_angle},800>'
+            # else:
+                # # if we need to turn we just turn
+                # message = f'<1,{move_distance // 10}, {turn_angle} ,2000>'
                 
             # printing the sent message - for debug
             print(message.encode('utf-8'))
@@ -242,7 +243,7 @@ while True:
             last_was_zero = False
             
             # this allows to skip sending messages for given numbers of loop
-            if loop >= loopdelay:    
+            if loop >= loopdelay and last_command != message:    
                 loop = 0
                 try:
                     ser.write(message.encode('utf-8'))
@@ -265,7 +266,7 @@ while True:
             # new experimental idea for soft stop to move 1/5 of last move
             if not last_was_zero: 
                 # message = f'<8,0,0,0>'
-                message = f'<1,{last_distance // 5},{last_angle // 4},750>'
+                message = f'<1,{last_distance // 2},{last_angle // 2},800>'
                 print(message.encode('utf-8'))
                 last_was_zero = True
 
@@ -273,12 +274,13 @@ while True:
                     loop = 0
                     try:
                         ser.write(message.encode('utf-8'))
+                        pass
                     except:
                         pass
 
     else:   
             no_ball_loops += 1
-            if (no_ball_loops < 100):
+            if (no_ball_loops < 100) and  not last_angle == 0:
                 # we turn as last - to check if the ball roll out of frame
                 message = f'<1,0,{last_angle},1250>'
                 try:
