@@ -80,6 +80,7 @@ center_y = int(rows / 2)
 position = 90 # degrees
 loopdelay = 0
 loop = 0
+boring_loops = 0
 size = 0
 size_treshold = 5
 
@@ -127,6 +128,9 @@ last_was_zero = False
 no_ball_loops = 0;
 # memorizing last command
 last_command = ""
+
+last_angle = 0
+last_distance = 0
 
 # flag for the second servo - the hand one
 hand_up = False
@@ -192,28 +196,28 @@ while True:
         #experiment with camera on servo
         # movingthe camera up/down to follow the ball 
         
-        if abs(up_error) > up_error_death_zone:
-            angle_up += Kp_up * up_error
-            angle_up = int(max(0, min(90, angle_up)))
+        # if abs(up_error) > up_error_death_zone:
+        #     angle_up += Kp_up * up_error
+        #     angle_up = int(max(0, min(90, angle_up)))
             
-            if angle_up_previous != angle_up:
-                message = f'<41,{angle_up}, 0, 0>'
-                print(message)
-                try:
-                    ser.write(message.encode('utf-8'))
-                except:
-                    pass
-        angle_up_previous = angle_up
+        #     if angle_up_previous != angle_up:
+        #         message = f'<41,{angle_up}, 0, 0>'
+        #         print(message)
+        #         try:
+        #             ser.write(message.encode('utf-8'))
+        #         except:
+        #             pass
+        # angle_up_previous = angle_up
         
-        # rise hand as yousee the ball!!!
-        if not hand_up:
-            hand_up = True;
-            message = f'<42,140, 0, 0>'
-            print(message)
-            try:
-                ser.write(message.encode('utf-8'))
-            except:
-                pass
+        # # rise hand as yousee the ball!!!
+        # if not hand_up:
+        #     hand_up = True;
+        #     message = f'<42,140, 0, 0>'
+        #     print(message)
+        #     try:
+        #         ser.write(message.encode('utf-8'))
+        #     except:
+        #         pass
 
         # calculating PID for turning
         turn_angle = int(Kp_angle * turn_error + Ki_angle * turn_error_memory + Kd_angle * turn_error_delta)            
@@ -226,10 +230,10 @@ while True:
             
             if abs(turn_angle) < angle_death_zone:
                 # if we dont turn we can move
-                message = f'<1,{move_distance }, 0,500>'
+                message = f'<1,{move_distance }, 0,1250>'
             else:
                 # if we need to turn we just turn
-                message = f'<1,{move_distance // 4}, {turn_angle} ,500>'
+                message = f'<1,{move_distance // 4}, {turn_angle} ,2000>'
                 
             # printing the sent message - for debug
             print(message.encode('utf-8'))
@@ -253,11 +257,13 @@ while True:
                     pass
 
             last_command = message
+            last_angle= turn_angle
+            last_distance = move_distance
 
         else:
             # if we don't need to move - we send the command to stop
             if not last_was_zero: 
-                message = f'<0,0,0,0>'
+                message = f'<8,0,0,0>'
                 print(message.encode('utf-8'))
                 last_was_zero = True
 
@@ -268,43 +274,61 @@ while True:
                     except:
                         pass
 
-    else:
-            # if we didn't already - we send stop command
-            # print(f"No ball for {no_ball_loops} loops")
-            if not last_was_zero: 
-                message = f'<0,0,0,0>'
-                print(message.encode('utf-8'))
-                last_was_zero = True
-
-                if loop > loopdelay:    
-                    loop = 0
-                    try:
-                        ser.write(message.encode('utf-8'))
-                    except:
-                        pass
-
-            #  counting for how many loopswe don't see ball
+    else:   
             no_ball_loops += 1
-            if (no_ball_loops > 100):
+            if (no_ball_loops < 100):
+                # we turn as last - to check if the ball roll out of frame
+                message = f'<1,0,{last_angle},1250>'
+                try:
+                    ser.write(message.encode('utf-8'))
+                except:
+                    pass
+            else:
+                # if we didn't already - we send stop command
+                # print(f"No ball for {no_ball_loops} loops")
+                if not last_was_zero: 
+                    message = f'<8,0,0,0>'
+                    print(message.encode('utf-8'))
+                    last_was_zero = True
+
+                    if loop > loopdelay:    
+                        loop = 0
+                        try:
+                            ser.write(message.encode('utf-8'))
+                        except:
+                            pass
+
+                boring_loops += 1;
                 print("Gimme Ball!!!!")
+                
+                if boring_loops > 30:
+                    # if we wait long we search around
+                    message = f'<1,0,360,500>'
+                    print(message.encode('utf-8'))
+                    last_was_zero = True
+                    try:
+                        ser.write(message.encode('utf-8'))
+                    except:
+                        pass
 
-            if hand_up:
-                hand_up = False;
-                message = f'<42,5, 0, 0>'
-                print(message)
-                try:
-                    ser.write(message.encode('utf-8'))
-                except:
-                    pass
 
-            if 40 < angle_up or angle_up < 25:  
-                angle_up = 30;
-                message = f'<41,30,0,0>'
-                print("cam level")
-                try:
-                    ser.write(message.encode('utf-8'))
-                except:
-                    pass
+            # if hand_up:
+            #     hand_up = False;
+            #     message = f'<42,5, 0, 0>'
+            #     print(message)
+            #     try:
+            #         ser.write(message.encode('utf-8'))
+            #     except:
+            #         pass
+
+            # if 40 < angle_up or angle_up < 25:  
+            #     angle_up = 30;
+            #     message = f'<41,30,0,0>'
+            #     print("cam level")
+            #     try:
+            #         ser.write(message.encode('utf-8'))
+            #     except:
+            #         pass
 
 
     # preparing the on screen displays
