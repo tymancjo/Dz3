@@ -295,9 +295,9 @@ while True:
 
     else:   
             no_ball_loops += 1
-            if (no_ball_loops < 100) and  not last_angle == 0:
+            if (no_ball_loops < 100) and  (not last_angle == 0 or last_distance ==0):
                 # we turn as last - to check if the ball roll out of frame
-                message = f'<1,0,{last_angle},1250>'
+                message = f'<1,{last_distance},{last_angle},1250>'
                 try:
                     ser.write(message.encode('utf-8'))
                 except:
