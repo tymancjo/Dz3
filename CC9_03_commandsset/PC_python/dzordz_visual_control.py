@@ -32,6 +32,9 @@ W, H = (1280 // 2, 720 // 2)
 cap.set(3, W)
 cap.set(4, H)
 
+# default is to try showthe video window
+show_window = True
+
 # trying to use the camera
 try:
     _, frame = cap.read()
@@ -349,10 +352,14 @@ while True:
 
 
     # preparing the on screen displays
-    cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.putText(frame,str(up_error), (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    # cv2.imshow("Frame", frame)
+    if show_window:
+        try:
+            cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            cv2.putText(frame,str(up_error), (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            cv2.imshow("Frame", frame)
+        except:
+            show_window= False
     
     # adding the loop counter
     loop += 1;
