@@ -98,15 +98,15 @@ distance = 0
 # turn part:
 angle_death_zone = 1
 Kp_angle = 0.05
-Ki_angle = 0.0001
-Kd_angle = 0.01
+Ki_angle = 0#0.0001
+Kd_angle = 0#0.01
 
 # distance part:
 target_distance = 550 #[mm]
 dist_death_zone = 10 #[cm]
 Kp_dist = 0.05
-Ki_dist = 0.00005
-Kd_dist = 0.01
+Ki_dist = 0#0.00005
+Kd_dist = 0#0.01
 
 # stuff for PID
 # variables required for my simplified PID algorithm 
@@ -228,8 +228,12 @@ while True:
         # experimental - loking for a way to get rid of the hickup-moves
         # the idea is - if we want to move less than the last time, let's just don't sent another
         # move command.
+        
+        direction = True
+        if (move_distance < 0 and last_distance > 0) or (move_distance > 0 and last_distance <0):
+            direction = False 
          
-        if abs(move_distance) < abs(last_distance) and move_distance / abs(move_distance) != last_distance / abs(last_distance):
+        if abs(move_distance) < abs(last_distance) and direction:
             move_distance = 0
         
         
@@ -348,7 +352,7 @@ while True:
     cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
     cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
     cv2.putText(frame,str(up_error), (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.imshow("Frame", frame)
+    # cv2.imshow("Frame", frame)
     
     # adding the loop counter
     loop += 1;
