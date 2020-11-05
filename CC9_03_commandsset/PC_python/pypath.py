@@ -1,5 +1,5 @@
 from tkinter import *
-from tkinter.colorchooser import askcolor
+# from tkinter.colorchooser import askcolor
 import math
 import serial
 from time import sleep
@@ -135,6 +135,54 @@ class Paint(object):
 
     def getR(self, *args):
         self.R_slider.set(myround(self.R_slider.get()))
+
+    def drawArc(self, start, theta, length, alpha ):
+        # function for drawing an arc curve
+        localscale = 1/(self.choose_size_button.get() /100)
+
+        x0, y0 = start
+
+        theta_d = theta
+        theta = math.radians(theta)
+        alpha_r = math.radians( alpha )
+
+        # calculating the Rarius
+        # lenght = alpha_r * R 
+        R = length / abs(alpha_r)
+
+        znak = -1 * alpha / abs(alpha)
+
+        # print(f"Znak i tak {znak}  {alpha} {theta_d}")
+        
+        Cx = x0 + znak * R * math.sin( theta )
+        Cy = y0 + znak * R * math.cos( theta )
+
+        x1 = R * math.sin(alpha_r)
+        y1 = -1* R * (1 - math.cos(alpha_r)) # bo liczymy y jak piksele w dół
+
+        x2 =  x1 * math.cos(theta) + y1 * math.sin(theta)
+        y2 = -x1 * math.sin(theta) + y1 * math.cos(theta)
+
+        x2 =  x0 - znak * x2
+        y2 =  y0 - znak * y2
+
+        # skalowanie do kreślenia 
+        Cx,Cy = self.projection((Cx,Cy))
+        R = R * localscale
+        
+        if alpha > 0:
+            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha,
+                                                  style=ARC, width=self.line_width, outline='red'))
+        else:
+            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-270, extent=alpha, 
+                                                  style=ARC, width=self.line_width, outline='red'))
+
+        self.txt.append(self.c.create_text(Cx,Cy, fill="black",font="20",
+                        text=f"arcL:{int(length)}cm"))
+
+        return ( x2, y2 )
+
+
 
     def experimental(self, *args):
         # usedfor testing purposes
@@ -321,7 +369,8 @@ class Paint(object):
             for gline in self.gridlines:
                 self.c.delete(gline)
 
-        self.reDraw();
+        # self.reDraw();
+        self.redraw_from_commands()
 
         spc100cm = 10 * 100 / self.choose_size_button.get() #100cm in pixels
 
@@ -518,6 +567,62 @@ class Paint(object):
                 if "Step added" in response:
                     print("Command confirmed!")
                     break
+
+    def redraw_from_commands(self):
+        # the idea of this procedure is to be able to redraw the path based on the commands list.
+
+        if len(self.commands):
+            # lets bring the 1st point position
+            starting_point = self.points[0]
+            x, y = starting_point
+            # global starting angle
+            azimuth = 90
+
+            # lets now go thru the membered commands:
+            for command in self.commands:
+                # lets disassemble this one:
+                #  command is (length, angle, speed, global angle)
+                length, angle, speed, dA = command
+                
+                if length == 0:
+                    azimuth += angle
+                else:
+                    if angle == 0:
+                        # we just travel via straight line.
+                        dX = length * math.cos(math.radians(azimuth))
+                        dY = -1 * length * math.sin(math.radians(azimuth))
+                        
+                        x_end = x + dX
+                        y_end = y + dY
+
+                        _x  ,_y  = self.projection( (x, y) )
+                        _xe ,_ye = self.projection( (x_end, y_end) )
+
+                        self.lines.append(self.c.create_line(_x, _y, _xe, _ye,
+                                width=self.line_width, fill='red',
+                                capstyle=ROUND, smooth=TRUE, splinesteps=36))
+
+                        mX = (_x + _xe) / 2
+                        mY = (_y + _ye) / 2
+
+                        self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
+                        text=f"{int(length)}cm"))
+
+                        x, y = x_end, y_end
+                    
+                    else:
+                        # drawing an angle
+                        x,y = self.drawArc((x,y), azimuth, length, angle)
+                        azimuth += angle
+
+                # print(f"Azimuth: {azimuth} dA: {dA}")
+            self.points[-1] = (x,y) # to compensate the shifts due to redraws angles 
+            self.old_x = x
+            self.old_y = y
+
+                        
+
+
 
     
             
