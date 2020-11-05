@@ -170,6 +170,11 @@ class Paint(object):
         Cx,Cy = self.projection((Cx,Cy))
         R = R * localscale
         
+        if alpha == 360:
+            alpha = 359
+        if alpha == -360:
+            alpha = 359
+
         if alpha > 0:
             self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha,
                                                   style=ARC, width=self.line_width, outline='red'))
@@ -185,58 +190,18 @@ class Paint(object):
 
 
     def experimental(self, *args):
+        
         # usedfor testing purposes
-        localscale = 1/(self.choose_size_button.get() /100)
-
-        x0, y0 = self.points[-1]
-        
-        theta = math.radians( self.globalAngle )
-        theta_d = self.globalAngle
-        
         alpha = myround(self.alpha_slider.get())
-        alpha_r = math.radians( alpha )
-
         R = myround(self.R_slider.get())
-
-        znak = -1 * alpha / abs(alpha)
+        dL = abs(int(math.radians(alpha) * R))
         
-        Cx = x0 + znak * R * math.sin( theta )
-        Cy = y0 + znak * R * math.cos( theta )
-
-        x1 = R * math.sin(alpha_r)
-        y1 = -1* R * (1 - math.cos(alpha_r)) # bo liczymy y jak piksele w dół
-
-        x2 =  x1 * math.cos(theta) + y1 * math.sin(theta)
-        y2 = -x1 * math.sin(theta) + y1 * math.cos(theta)
-
-        x2 =  x0 - znak * x2
-        y2 =  y0 - znak * y2
-
-        print(x1,y1)
-        print(x2,y2)
-
+        x2, y2 = self.drawArc(self.points[-1], self.globalAngle, dL, alpha)
+        
         self.points.append((x2, y2))
         self.old_x = x2
         self.old_y = y2
 
-        # skalowanie do kreślenia 
-        x2,y2 = self.projection((x2,y2))
-        Cx,Cy = self.projection((Cx,Cy))
-        R0 = R
-        R = R * localscale
-        
-        if alpha > 0:
-            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha,
-                                                  style=ARC, width=self.line_width, outline='red'))
-        else:
-            self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-270, extent=alpha, 
-                                                  style=ARC, width=self.line_width, outline='red'))
-        
-        self.joints.append( self.c.create_oval(x2-5,y2-5,x2+5,y2+5))
-
-        # preparing the command stuff
-
-        dL = abs(int(alpha_r * R0))
         A = alpha
         self.globalAngleLast.append( self.globalAngle);
         self.globalAngle += A
@@ -245,12 +210,12 @@ class Paint(object):
         # adding thisline as command
         self.commands.append((dL,A,700,dA))
         print(self.commands[-1])
-        # adding commandto reset the speed back after turn slowly
+        # adding command to reset the speed back after turn slowly
         self.commands.append((0,0,9999,dA))
         
 
     def goUp(self, *args):
-        message = f'<1,500,0,9999>'
+        message = f'<1,100,0,9999>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 
@@ -270,7 +235,7 @@ class Paint(object):
         print(message.encode('utf-8'))
 
     def goStop(self, *args):
-        message = f'<8,0,0,2000>'
+        message = f'<8,0,0,0>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
 
