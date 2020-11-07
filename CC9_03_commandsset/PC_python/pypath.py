@@ -1,15 +1,11 @@
 from tkinter import *
-from tkinter.colorchooser import askcolor
 import math
 import serial
 from time import sleep
 
 # ogólne funkcje
-def elliptical_arc(canvas, x, y, r1, r2, t0, t1, width):
-    return canvas.create_arc(x-r1, y-r2, x+r1, y+r2, start=t0, extent=t1-t0,
-                             style='arc', width=width)
-
 def myround(x, base=5):
+    # rounding to the given base, used for snaps
     return base * round(x/base) 
 
 class Paint(object):
@@ -23,11 +19,8 @@ class Paint(object):
         self.root = Tk()
         self.root.title('Dz3 Path Maker')
 
-        self.pen_button = Button(self.root, text='undo', command=self.undo)
-        self.pen_button.grid(row=0, column=0)
-
-        # self.brush_button = Button(self.root, text='make code', command=self.makecode)
-        # self.brush_button.grid(row=0, column=1)
+        self.connect_button = Button(self.root, text='Connect', command=self.connect)
+        self.connect_button.grid(row=0, column=0)
 
         self.color_button = Button(self.root, text='Upload', command=self.sent_serial)
         self.color_button.grid(row=0, column=1)
@@ -41,39 +34,45 @@ class Paint(object):
         self.S_button = Button(self.root, text='STOP', command=self.S)
         self.S_button.grid(row=0, column=4)
 
-        self.eraser_button = Button(self.root, text='cl.Prog', command=self.clearDz3)
+        self.eraser_button = Button(self.root, text='clr Dz3', command=self.clearDz3)
         self.eraser_button.grid(row=0, column=5)
 
-        self.eraser_button = Button(self.root, text='Clear', command=self.clear)
+        self.eraser_button = Button(self.root, text='clr Canvas', command=self.clear)
         self.eraser_button.grid(row=0, column=6)
 
-        self.choose_size_button = Scale(self.root, from_=1, to=100, orient=VERTICAL, command=self.theGrid)
+        self.pen_button = Button(self.root, text='undo', command=self.undo)
+        self.pen_button.grid(row=0, column=7)
+        
+        self.snap_button = Button(self.root, text='snap to grid', command=self.toggle_snap)
+        self.snap_button.grid(row=0, column=10)
+
+        self.choose_size_button = Scale(self.root, from_=1, to=100, orient=HORIZONTAL, command=self.theGrid)
         self.choose_size_button.set(36)
-        self.choose_size_button.grid(row=1, column=9, rowspan=10,sticky='NSEW')
+        self.choose_size_button.grid(row=30, column=10, columnspan=4,sticky='NSEW')
 
         self.c = Canvas(self.root, bg='white', width=self.WIDTH, height=self.HEIGHT)
-        self.c.grid(row=1, columnspan=9, rowspan=10)
+        self.c.grid(row=1, columnspan=9, rowspan=30)
 
         # control buttons 
-        self.go_up = Button(self.root, text='Up')
-        self.go_up.grid(row=8, column=11)
-        self.go_up.bind("<ButtonPress>", self.goUp)
-        self.go_up.bind("<ButtonRelease>", self.goStop)
+        # self.go_up = Button(self.root, text='Up')
+        # self.go_up.grid(row=8, column=11)
+        # self.go_up.bind("<ButtonPress>",self.goUp)
+        # self.go_up.bind("<ButtonRelease>", self.goStop)
 
-        self.go_dn = Button(self.root, text='Dn')
-        self.go_dn.grid(row=9, column=11)
-        self.go_dn.bind("<ButtonPress>", self.goDn)
-        self.go_dn.bind("<ButtonRelease>", self.goStop)
+        # self.go_dn = Button(self.root, text='Dn')
+        # self.go_dn.grid(row=9, column=11)
+        # self.go_dn.bind("<ButtonPress>", self.goDn)
+        # self.go_dn.bind("<ButtonRelease>", self.goStop)
 
-        self.go_left = Button(self.root, text='<<')
-        self.go_left.grid(row=9, column=10)
-        self.go_left.bind("<ButtonPress>", self.goLeft)
-        self.go_left.bind("<ButtonRelease>", self.goStop)
+        # self.go_left = Button(self.root, text='<<')
+        # self.go_left.grid(row=9, column=10)
+        # self.go_left.bind("<ButtonPress>", self.goLeft)
+        # self.go_left.bind("<ButtonRelease>", self.goStop)
 
-        self.go_right = Button(self.root, text='>>')
-        self.go_right.grid(row=9, column=12)
-        self.go_right.bind("<ButtonPress>", self.goRight)
-        self.go_right.bind("<ButtonRelease>", self.goStop)
+        # self.go_right = Button(self.root, text='>>')
+        # self.go_right.grid(row=9, column=12)
+        # self.go_right.bind("<ButtonPress>", self.goRight)
+        # self.go_right.bind("<ButtonRelease>", self.goStop)
 
         # anglelabel stuff
         self.alphatxt = Label(self.root, text = "Turning by angle ")
@@ -93,10 +92,10 @@ class Paint(object):
         self.anglelabel = Label(self.root, text = "0")
         self.anglelabel.grid(row=6, column=11)
 
-        # experimental trigger button
+        # insertArc trigger button
         self.go_right = Button(self.root, text='Add Turn')
         self.go_right.grid(row=5, column=10)
-        self.go_right.bind("<ButtonPress>", self.experimental)
+        self.go_right.bind("<ButtonPress>", self.insertArc)
 
         # somestuff to try straightline things
         self.points = [];
@@ -105,6 +104,9 @@ class Paint(object):
         self.txt = [];
         self.arclines = [];
         self.origin = None;
+        self.snap = not True
+        self.toggle_snap()
+
 
         self.globalAngle = 90; # startring angle 
         self.globalAngleLast = [self.globalAngle];
@@ -121,14 +123,71 @@ class Paint(object):
         self.translateclick= (0,0);
         
         #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
-        try:
-            self.ser = serial.Serial('/tmp/ttyBLE', timeout=1)
-            self.ser.baudrate = 9600
-        except:
-            print("Serial BT port error...")
+        self.connect()
 
         self.setup()
         self.root.mainloop()
+
+    def setup(self):
+        self.old_x = None
+        self.old_y = None
+        self.line_width = 5
+        self.drivescale = self.choose_size_button.get()
+        self.color = self.DEFAULT_COLOR
+        self.eraser_on = False
+        self.active_button = self.pen_button
+        # self.c.bind('<B1-Motion>', self.pointer)
+        self.c.bind('<ButtonRelease-1>', self.pointerUp)
+        self.c.bind('<B3-Motion>', self.movecanvas)
+        self.c.bind('<Button-3>', self.setmove)
+        self.c.bind('<MouseWheel>', self.zoom)
+        self.c.bind('<Button-4>', self.zoomIn)
+        self.c.bind('<Button-5>', self.zoomOut)
+        self.c.bind('<Motion>', self.showTrajectory)
+
+        self.alpha_slider.bind('<Button-5>', self.anle_dn)
+        self.alpha_slider.bind('<Button-4>', self.anle_up)
+
+        self.R_slider.bind('<Button-5>', self.R_dn)
+        self.R_slider.bind('<Button-4>', self.R_up)
+
+        self.theGrid(self.choose_size_button.get());   
+
+    def connect(self):
+        print("Connecting...")
+        try:
+            self.ser = serial.Serial('/tmp/ttyBLE', timeout=1)
+            self.ser.baudrate = 9600
+            self.color_button.configure(background = "green")
+            self.go_button.configure(background = "green")
+            self.loop_button.configure(background = "green")
+            self.is_serial = True
+        except:
+            print("Serial BT port error...")
+            self.color_button.configure(background = "red")
+            self.go_button.configure(background = "red")
+            self.loop_button.configure(background = "red")
+            self.is_serial = False
+
+    def toggle_snap(self):
+        self.snap = not self.snap
+        if self.snap:
+            self.snap_button.configure(background = "green")
+        else:
+            self.snap_button.configure(background = "lightgray")
+
+            
+    def anle_dn(self, *args):
+        self.alpha_slider.set(myround(self.alpha_slider.get())-5)
+    
+    def anle_up(self, *args):
+        self.alpha_slider.set(myround(self.alpha_slider.get())+5)
+
+    def R_dn(self, *args):
+        self.R_slider.set(myround(self.R_slider.get())-5)
+    
+    def R_up(self, *args):
+        self.R_slider.set(myround(self.R_slider.get())+5)
 
     def getAlpha(self, *args):
         self.alpha_slider.set(myround(self.alpha_slider.get()))
@@ -136,21 +195,23 @@ class Paint(object):
     def getR(self, *args):
         self.R_slider.set(myround(self.R_slider.get()))
 
-    def experimental(self, *args):
-        # usedfor testing purposes
+    def drawArc(self, start, theta, length, alpha ):
+        # function for drawing an arc curve
         localscale = 1/(self.choose_size_button.get() /100)
 
-        x0, y0 = self.points[-1]
-        
-        theta = math.radians( self.globalAngle )
-        theta_d = self.globalAngle
-        
-        alpha = myround(self.alpha_slider.get())
+        x0, y0 = start
+
+        theta_d = theta
+        theta = math.radians(theta)
         alpha_r = math.radians( alpha )
 
-        R = myround(self.R_slider.get())
+        # calculating the Rarius
+        # lenght = alpha_r * R 
+        R = length / abs(alpha_r)
 
         znak = -1 * alpha / abs(alpha)
+
+        # print(f"Znak i tak {znak}  {alpha} {theta_d}")
         
         Cx = x0 + znak * R * math.sin( theta )
         Cy = y0 + znak * R * math.cos( theta )
@@ -164,47 +225,80 @@ class Paint(object):
         x2 =  x0 - znak * x2
         y2 =  y0 - znak * y2
 
-        print(x1,y1)
-        print(x2,y2)
-
-        self.points.append((x2, y2))
-        self.old_x = x2
-        self.old_y = y2
-
         # skalowanie do kreślenia 
-        x2,y2 = self.projection((x2,y2))
         Cx,Cy = self.projection((Cx,Cy))
-        R0 = R
         R = R * localscale
         
+        if alpha == 360:
+            alpha = 359
+        if alpha == -360:
+            alpha = 359
+
         if alpha > 0:
             self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-90, extent=alpha,
                                                   style=ARC, width=self.line_width, outline='red'))
         else:
             self.lines.append( self.c.create_arc( Cx-R, Cy-R, Cx+R, Cy+R, start=theta_d-270, extent=alpha, 
                                                   style=ARC, width=self.line_width, outline='red'))
+
+        self.txt.append(self.c.create_text(Cx,Cy, fill="black",font="20",
+                        text=f"arcL:{int(length)}cm"))
+
+        return ( x2, y2 )
+
+
+    def insertArc(self, *args):
         
-        self.joints.append( self.c.create_oval(x2-5,y2-5,x2+5,y2+5))
+        if len(self.points):
+            alpha = myround(self.alpha_slider.get())
+            R = myround(self.R_slider.get())
+            dL = abs(int(math.radians(alpha) * R))
+            
+            x2, y2 = self.drawArc(self.points[-1], self.globalAngle, dL, alpha)
+            
+            cX, cY = self.projection(( x2, y2 ))
 
-        # preparing the command stuff
+            self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
+                fill=None, width=2) )
 
-        dL = abs(int(alpha_r * R0))
-        A = alpha
-        self.globalAngleLast.append( self.globalAngle);
-        self.globalAngle += A
-        dA = self.globalAngle 
+            self.points.append((x2, y2))
+            self.old_x = x2
+            self.old_y = y2
 
-        # adding thisline as command
-        self.commands.append((dL,A,700,dA))
-        print(self.commands[-1])
-        # adding commandto reset the speed back after turn slowly
-        self.commands.append((0,0,9999,dA))
+            A = alpha
+            self.globalAngleLast.append( self.globalAngle);
+            self.globalAngle += A
+            dA = self.globalAngle 
+
+            # adding thisline as command
+            self.commands.append((dL,A,700,dA))
+            print(self.commands[-1])
+            # adding command to reset the speed back after turn slowly
+            self.commands.append((0,0,9999,dA))
         
 
     def goUp(self, *args):
-        message = f'<1,500,0,9999>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        
+        if self.go_up["state"] == "active":
+            message = f'<1,20,0,9999>'
+            print(message.encode('utf-8'))
+            
+            try:
+                self.ser.write(message.encode('utf-8'))
+            except:
+                pass    
+
+            self.root.after(50, self.goUp)
+        else:
+            print("i'm done")
+            message = f'<8,0,0,0>'
+            print(message.encode('utf-8'))
+            
+            try:
+                self.ser.write(message.encode('utf-8'))
+            except:
+                pass
+
 
     def goLeft(self, *args):
         message = f'<1,0,360,300>'
@@ -217,15 +311,30 @@ class Paint(object):
         print(message.encode('utf-8'))
 
     def goDn(self, *args):
-        message = f'<1,-500,0,9999>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        if self.go_dn["state"] == "active":
+            message = f'<1,-20,0,9999>'
+            print(message.encode('utf-8'))
+            
+            try:
+                self.ser.write(message.encode('utf-8'))
+            except:
+                pass    
+
+            self.root.after(50, self.goDn)
+        else:
+            print("i'm done")
+            message = f'<8,0,0,0>'
+            print(message.encode('utf-8'))
+            
+            try:
+                self.ser.write(message.encode('utf-8'))
+            except:
+                pass
 
     def goStop(self, *args):
-        message = f'<8,0,0,2000>'
+        message = f'<8,0,0,0>'
         self.ser.write(message.encode('utf-8'))
         print(message.encode('utf-8'))
-
 
     def S(self, *args):
         # sent the GO command
@@ -245,42 +354,11 @@ class Paint(object):
         self.choose_size_button.set(self.choose_size_button.get() - 1);
         pass
 
-    def arc(self, x, y, r, a1, a2, canvas):
-        # drawing an circle based arc.
-        x0 = x - r
-        y0 = y - r
-        x1 = x + r
-        y1 = y + r
-
-        return canvas.create_oval(x0, y0, x1, y1)
-
-
-    def setup(self):
-        self.old_x = None
-        self.old_y = None
-        self.line_width = 5
-        self.drivescale = self.choose_size_button.get()
-        self.color = self.DEFAULT_COLOR
-        self.eraser_on = False
-        self.active_button = self.pen_button
-        self.c.bind('<B1-Motion>', self.pointer)
-        self.c.bind('<ButtonRelease-1>', self.pointerUp)
-        self.c.bind('<B3-Motion>', self.movecanvas)
-        self.c.bind('<Button-3>', self.setmove)
-        self.c.bind('<MouseWheel>', self.zoom)
-        self.c.bind('<Button-5>', self.zoomIn)
-        self.c.bind('<Button-4>', self.zoomOut)
-
-        # trying to makepossible to draw arcs
-        # self.c.bind('<ButtonRelease-3>', self.pointerArc)
-        self.theGrid(self.choose_size_button.get());
-    
     def setmove(self, event):
         localscale = 1/(self.choose_size_button.get() /100)
         self.translateclick = (event.x / localscale, event.y / localscale)
         self.oldtranslate = self.translate
         print(self.translateclick)
-
 
     def resetmove(self):
         pass
@@ -313,6 +391,19 @@ class Paint(object):
 
         return (x, y)
 
+    def projection_back(self, point):
+        #  grabbing the scale
+        localscale = (self.choose_size_button.get() /100)
+        
+        shift_x, shift_y = self.translate;
+
+        x,y = point;
+        #  moving and scaling
+        x = x * localscale - shift_x;
+        y = y * localscale - shift_y;
+
+        return (x, y)
+
     def theGrid(self, scaleval):
         
         self.scrClr();
@@ -321,21 +412,18 @@ class Paint(object):
             for gline in self.gridlines:
                 self.c.delete(gline)
 
-        self.reDraw();
+        
 
         spc100cm = 10 * 100 / self.choose_size_button.get() #100cm in pixels
-
 
         nX = self.WIDTH // spc100cm
         nY = self.HEIGHT // spc100cm
 
-        print(spc100cm,nX);
-
-        
-
-        for n in range(int(2*nX)):
+        # for n in range(int(3*nX)):
+        for n in range(120):
             
-            sx, sy = self.projection((10 * (n-1) - 10*(nX // 2), 10 * (n-1) - 10*(nX // 2)))
+            # sx, sy = self.projection((10 * (n-1) - 10*(nX // 2), 10 * (n-1) - 10*(nX // 2)))
+            sx, sy = self.projection((10 * (n-1-30), 10 * (n-1-30)))
 
             kolor = 'gray'
             grubosc = 1
@@ -352,6 +440,9 @@ class Paint(object):
                                width=grubosc, fill=kolor,
                                capstyle=ROUND, smooth=TRUE, splinesteps=36) )
 
+        # self.reDraw();
+        self.redraw_from_commands()
+
 
     def update(self):
         self.anglelabel.config(text = str(self.globalAngle) )
@@ -360,57 +451,41 @@ class Paint(object):
         '''calculate distance between 2 points'''
         return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
-    def activate_button(self, some_button, eraser_mode=False):
-        self.active_button.config(relief=RAISED)
-        some_button.config(relief=SUNKEN)
-        self.active_button = some_button
-        self.eraser_on = eraser_mode
+    # def activate_button(self, some_button, eraser_mode=False):
+    #     self.active_button.config(relief=RAISED)
+    #     some_button.config(relief=SUNKEN)
+    #     self.active_button = some_button
+    #     self.eraser_on = eraser_mode
 
     def reset(self, event):
         self.old_x, self.old_y = None, None
 
-    def pointer(self,event):
-        # if not self.old_x and not self.old_y:
-        #     self.old_x = event.x
-        #     self.old_y = event.y
-        pass 
 
-    def pointerArc(self, event):
-        # lets check if this is maybe the first click
-        if not self.old_x and not self.old_y:
-            _x = event.x
-            _y = event.y 
+    def showTrajectory(self, event):
+        self.drivescale = self.choose_size_button.get() /100
+        shift_x, shift_y = self.translate;
+
+        if len(self.points):
+            try:
+                self.c.delete(self.trajectory)
+            except:
+                pass
+
+            _x,_y = self.projection(self.points[-1])
+
+
+            x = event.x * self.drivescale - shift_x
+            y = event.y * self.drivescale - shift_y
             
-            self.old_x = _x
-            self.old_y = _y 
+            if self.snap:
+                x = myround(x, 10)
+                y = myround(y, 10)
             
-            self.points.append((_x, _y))
+            x,y= self.projection((x,y))
 
-            self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
-            fill=None, width=2)
-
-        else:
-            # skoro to juz kolejny klik, rysujemy elipsę przez approx przez dwa odcinki
-            _x = event.x
-            _y = event.y 
-
-            self.c.create_line(self.old_x, self.old_y, event.x, event.y,
-                               width=self.line_width, fill='blue',
+            self.trajectory = self.c.create_line(x, y, _x, _y,
+                               width=self.line_width - 2, fill='gray',
                                capstyle=ROUND, smooth=TRUE, splinesteps=36)
-
-            self.arclines.append((_x,_y)) 
-            self.old_x = event.x
-            self.old_y = event.y
-            
-            # jeżeli to juz drugi odcinek generujemy łuk
-            if len(self.arclines) == 2:
-                
-                p1 = (self.points[-1][0], self.points[-1][1])
-                p0 = (self.arclines[-1][0], self.arclines[-1][1])
-
-                self._create_arc(self.c, p0, p1,90)
-                
-                self.arclines = []
 
 
     def pointerUp(self,event):
@@ -421,6 +496,10 @@ class Paint(object):
             _x = event.x * self.drivescale - shift_x
             _y = event.y * self.drivescale - shift_y 
             
+            if self.snap:
+                _x = myround(_x, 10)
+                _y = myround(_y, 10)
+
             self.old_x = _x
             self.old_y = _y 
             
@@ -435,108 +514,169 @@ class Paint(object):
             _x = event.x * self.drivescale - shift_x
             _y = event.y * self.drivescale - shift_y
             
+            if self.snap:
+                _x = myround(_x, 10)
+                _y = myround(_y, 10)
+
+            if self._distance(self.points[-1], (_x, _y)) >= 1:
+
+                self.points.append((_x, _y))
+                
+                lx1, ly1 = self.projection( (self.old_x, self.old_y) )
+                lx2, ly2 = self.projection( (_x,_y) )
+
+                self.lines.append(self.c.create_line(lx1, ly1, lx2, ly2,
+                                width=self.line_width, fill='red',
+                                capstyle=ROUND, smooth=TRUE, splinesteps=36))
             
-            self.points.append((_x, _y))
+                self.old_x = _x
+                self.old_y = _y 
 
-            lx1, ly1 = self.projection( (self.old_x, self.old_y) )
-            lx2, ly2 = self.projection( (_x,_y) )
+                # figuring out the propper command for this click
+                origin_x, origin_y = self.points[0]
+                iA = 90;
+                # handling this very point
 
-            self.lines.append(self.c.create_line(lx1, ly1, lx2, ly2,
-                               width=self.line_width, fill='red',
-                               capstyle=ROUND, smooth=TRUE, splinesteps=36))
-           
-            self.old_x = _x
-            self.old_y = _y 
+                point = (_x, _y)
+                cX = point[0]
+                cY = point[1] 
 
-            # figuring out the propper command for this click
-            origin_x, origin_y = self.points[0]
-            iA = 90;
-            # handling this very point
+                dX = point[0] - (self.points[-2][0])
+                dY = (self.points[-2][1]) - point[1]
 
-            point = (_x, _y)
-            cX = point[0]
-            cY = point[1] 
+                dL = math.sqrt( dX**2 +dY**2 ) #* self.drivescale / 100
 
-            dX = point[0] - (self.points[-2][0])
-            dY = (self.points[-2][1]) - point[1]
+                # adding txt to the plot for easyreference.
+                mX = ((point[0] + self.points[-2][0]) / 2)
+                mY = ((point[1] + self.points[-2][1]) / 2)
 
-            dL = math.sqrt( dX**2 +dY**2 ) #* self.drivescale / 100
+                mX, mY = self.projection( (mX, mY) )
 
-            # adding txt to the plot for easyreference.
-            mX = ((point[0] + self.points[-2][0]) / 2)
-            mY = ((point[1] + self.points[-2][1]) / 2)
+                self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
+                            text=f"{int(dL)}cm"))
 
-            mX, mY = self.projection( (mX, mY) )
+                cX, cY = self.projection( (cX, cY) )
 
-            self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
-                        text=f"{int(dL)}cm"))
+                self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
+                fill=None, width=2) )
+                
+                dA = int(math.degrees(math.atan2(dY, dX)))
+                if len(self.commands) > 0:
+                    iA = self.commands[-1][3]
+                else:
+                    iA= 90
 
-            cX, cY = self.projection( (cX, cY) )
+                A = dA - iA
 
-            self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
-            fill=None, width=2) )
-            
-            dA = int(math.degrees(math.atan2(dY, dX)))
-            if len(self.commands) > 0:
-                iA = self.commands[-1][3]
-            else:
-                iA= 90
+                if A < -180: 
+                    A = 360 + A
+                elif A > 180:
+                    A = A - 360
 
-            A = dA - iA
+                # tracking theglobal angle od Dz3
+                self.globalAngleLast.append( self.globalAngle);
+                self.globalAngle += A
+                self.update()
+                
 
-            if A < -180: 
-                A = 360 + A
-            elif A > 180:
-                A = A - 360
-
-            # tracking theglobal angle od Dz3
-            self.globalAngleLast.append( self.globalAngle);
-            self.globalAngle += A
-            self.update()
-            
-
-            # adding thisline as 2 commands - 1-turn - 2 move
-            self.commands.append((0,A,0,dA))
-            print(self.commands[-1])
-            self.commands.append((dL,0,0,dA))
-            print(self.commands[-1])
-
-
+                # adding thisline as 2 commands - 1-turn - 2 move
+                self.commands.append((0,A,0,dA))
+                print(self.commands[-1])
+                self.commands.append((dL,0,0,dA))
+                print(self.commands[-1])
     
 
     def sent_serial(self):
         # first sent the set of sequence commands
-        for command in self.commands:
-            message = f'<20,{int(command[0])},{int(command[1])},{int(command[2])}>'
-            self.ser.write(message.encode('utf-8'))
-            print(message.encode('utf-8'))
-            # sleep(0.05)
-            # device.timeout=None
-            # waiting for propper respondbefore next one
-            while (True):
-                response = str(self.ser.readline())
-                if "Step added" in response:
-                    print("Command confirmed!")
-                    break
+        if self.is_serial:
+            for command in self.commands:
+                message = f'<20,{int(command[0])},{int(command[1])},{int(command[2])}>'
+                self.ser.write(message.encode('utf-8'))
+                print(message.encode('utf-8'))
+                
+                while (True):
+                    response = str(self.ser.readline())
+                    if "Step added" in response:
+                        print("Command confirmed!")
+                        break
 
-    
+    def redraw_from_commands(self):
+        # the idea of this procedure is to be able to redraw the path based on the commands list.
+
+        if len(self.commands):
+            # lets bring the 1st point position
+            starting_point = self.points[0]
+            x, y = starting_point
+            # global starting angle
+            azimuth = 90
+
+            # lets now go thru the membered commands:
+            for command in self.commands:
+                # marking the points
+                cX, cY = self.projection( (x, y) )
+                self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
+                fill=None, width=2) )
+
+                # lets disassemble this one:
+                #  command is (length, angle, speed, global angle)
+                length, angle, speed, dA = command
+                
+                if length == 0:
+                    azimuth += angle
+                else:
+                    if angle == 0:
+                        # we just travel via straight line.
+                        dX = length * math.cos(math.radians(azimuth))
+                        dY = -1 * length * math.sin(math.radians(azimuth))
+                        
+                        x_end = x + dX
+                        y_end = y + dY
+
+                        _x  ,_y  = self.projection( (x, y) )
+                        _xe ,_ye = self.projection( (x_end, y_end) )
+
+                        self.lines.append(self.c.create_line(_x, _y, _xe, _ye,
+                                width=self.line_width, fill='red',
+                                capstyle=ROUND, smooth=TRUE, splinesteps=36))
+
+                        mX = (_x + _xe) / 2
+                        mY = (_y + _ye) / 2
+
+                        self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
+                        text=f"{int(length)}cm"))
+
+                        x, y = x_end, y_end
+                    
+                    else:
+                        # drawing an angle
+                        x,y = self.drawArc((x,y), azimuth, length, angle)
+                        azimuth += angle
+
+                # print(f"Azimuth: {azimuth} dA: {dA}")
+            self.points[-1] = (x,y) # to compensate the shifts due to redraws angles 
+            self.old_x = x
+            self.old_y = y
             
     def go(self):
-        # sent the GO command
-        message = f'<30,0,0,0>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        if self.is_serial:
+            # sent the GO command
+            message = f'<30,0,0,0>'
+            self.ser.write(message.encode('utf-8'))
+            print(message.encode('utf-8'))
 
-    
-  
     def goLoop(self):
-        # sent the GO command
-        message = f'<33,0,0,0>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        if self.is_serial:
+            # sent the GO command
+            message = f'<33,0,0,0>'
+            self.ser.write(message.encode('utf-8'))
+            print(message.encode('utf-8'))
 
     def scrClr(self):
-        self.c.delete(self.origin)
+        try:
+            self.c.delete(self.origin)
+            self.c.delete(self.trajectory)
+        except:
+            pass
 
         for lin in self.lines:
             self.c.delete(lin)
@@ -545,43 +685,6 @@ class Paint(object):
         for joint in self.joints:
             self.c.delete(joint)
 
-    def reDraw(self):
-        
-        # drawing origin oval
-        if len(self.points) > 0:
-            _x, _y = self.projection(self.points[0]) 
-            
-            self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
-                fill=None, width=2)
-            
-            for i,point in enumerate(self.points):
-                if i > 0:
-                    cX, cY = self.projection(point)
-                    self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
-                                        fill=None, width=2) )
-                    
-                    _x,_y = self.projection(self.points[i-1])
-
-                    self.lines.append(self.c.create_line(_x, _y, cX, cY,
-                               width=self.line_width, fill='red',
-                               capstyle=ROUND, smooth=TRUE, splinesteps=36))
-
-                    mX = (_x + cX) / 2
-                    mY = (_y + cY) / 2
-
-                    dL = self._distance(self.points[i-1], point)
-
-                    self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
-                        text=f"{int(dL)}cm"))
-
-
-
-        # for lin in self.lines:
-        #     self.c.delete(lin)
-        # for txt in self.txt:
-        #     self.c.delete(txt)
-        # for joint in self.joints:
-        #     self.c.delete(joint)
 
 
     def clear(self):
@@ -601,12 +704,12 @@ class Paint(object):
         self.update();
 
     def clearDz3(self):
-        
-        message = f'<39,0,0,0>'
-        # self.ser.write(message)
-        self.ser.write(message.encode('utf-8'))
-        # print(message.encode('utf-8'))
-        print(message)
+        if self.is_serial:
+            message = f'<39,0,0,0>'
+            # self.ser.write(message)
+            self.ser.write(message.encode('utf-8'))
+            # print(message.encode('utf-8'))
+            print(message)
 
 
     def undo(self):

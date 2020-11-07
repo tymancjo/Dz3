@@ -32,6 +32,9 @@ W, H = (1280 // 2, 720 // 2)
 cap.set(3, W)
 cap.set(4, H)
 
+# default is to try showthe video window
+show_window = not True
+
 # trying to use the camera
 try:
     _, frame = cap.read()
@@ -98,15 +101,15 @@ distance = 0
 # turn part:
 angle_death_zone = 1
 Kp_angle = 0.05
-Ki_angle = 0.0001
-Kd_angle = 0.01
+Ki_angle = 0#0.0001
+Kd_angle = 0#0.01
 
 # distance part:
 target_distance = 550 #[mm]
 dist_death_zone = 10 #[cm]
 Kp_dist = 0.05
-Ki_dist = 0.00005
-Kd_dist = 0.01
+Ki_dist = 0#0.00005
+Kd_dist = 0#0.01
 
 # stuff for PID
 # variables required for my simplified PID algorithm 
@@ -225,17 +228,30 @@ while True:
         # calculating PID for moving
         move_distance = math.ceil(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
 
+        # experimental - loking for a way to get rid of the hickup-moves
+        # the idea is - if we want to move less than the last time, let's just don't sent another
+        # move command.
+        
+        direction = True
+        if (move_distance < 0 and last_distance > 0) or (move_distance > 0 and last_distance <0):
+            direction = False 
+         
+        if abs(move_distance) < abs(last_distance) and direction:
+            move_distance = 0
+        
+        the_speed = 1600 + abs(move_distance) * 55
+        
         # adding some general death zone
         if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
-            message = f'<1,{move_distance }, {turn_angle},1600>'
+            #message = f'<1,{move_distance }, {turn_angle},{the_speed}>'
             
-            # if abs(turn_angle) < angle_death_zone:
-                # # if we dont turn we can move
-                # message = f'<1,{move_distance }, {turn_angle},800>'
-            # else:
-                # # if we need to turn we just turn
-                # message = f'<1,{move_distance // 10}, {turn_angle} ,2000>'
-                
+            if abs(turn_angle) < angle_death_zone:
+                # if we dont turn we can move
+                message = f'<1,{move_distance }, {turn_angle},{the_speed}>'
+            else:
+                # if we need to turn we just turn
+                message = f'<1,{move_distance // 10}, {turn_angle} ,{the_speed}>'
+            
             # printing the sent message - for debug
             print(message.encode('utf-8'))
 
@@ -280,8 +296,9 @@ while True:
 
     else:   
             no_ball_loops += 1
-            if (no_ball_loops < 100) and  not last_angle == 0:
+            if (no_ball_loops < 100) and  (not last_angle == 0):
                 # we turn as last - to check if the ball roll out of frame
+                # message = f'<1,{last_distance},{last_angle},1250>'
                 message = f'<1,0,{last_angle},1250>'
                 try:
                     ser.write(message.encode('utf-8'))
@@ -337,10 +354,14 @@ while True:
 
 
     # preparing the on screen displays
-    cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.putText(frame,str(up_error), (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
-    cv2.imshow("Frame", frame)
+    if show_window:
+        try:
+            cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            cv2.putText(frame,str(up_error), (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+            cv2.imshow("Frame", frame)
+        except:
+            show_window= False
     
     # adding the loop counter
     loop += 1;
