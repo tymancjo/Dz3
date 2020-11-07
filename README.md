@@ -9,9 +9,22 @@ The basics are:
 - Root is usingAccelStepper library from Ardruino ecosystem (https://www.airspayce.com/mikem/arduino/AccelStepper/)
 - The set of commands can be sent by any means - now it uses a Bluetooth BLE connection 
 
-More in depth description will be added.
+# Dz3 Hardware description
 
-## Dz3 code
+The general idea of Dżordż3 (George 3) alias Dz3 is based on the quite universal platform that allows for experiments with basic robotics.
+
+The whole Dz3 "ecosystem" is considered to be made of three block parts:
+- Arduino controlled moving platform
+- Python based software for macro level communication with Arduino part
+- Raspberry Pi4 as a platform to run the python part
+
+The moving platform is made according to this block diagram:
+![Dz3 Block Diagram](img/Dz3-Arduino-block.png)
+
+
+
+
+## Dz3 - Arduino code communication
 
 The main ideaof the used communication code is based on sending 4 number sets in form:
 **<C,a,b,c>**
@@ -47,7 +60,31 @@ where:
 
 ## The python app
 
-The python app allows to draw path and ten convert it to the set of commands that are sent via comm port to the Dz3 as sequence steps.
-More details will be added here...
+The python app - **pypath.py** allows to draw path and ten convert it to the set of commands that are sent via comm port to the Dz3 as sequence steps. To be able to communicate to the Dz3 Arduino hardware control part it utilise the **python** **serial** library.
+Active connection to the Dz3 Arduino uC via serial is needed. It can be executed by the USB cable, or Bluetooth module. The details of used connection need to be definedin the **connect** procedure of the **pypath.py** file. 
 
-to be continued...
+In the source case the ble-serial library was used in linux to create the virtual serial port via BT BLE,connecting it to the BT HC-06 module of Dz3. *I never tested bluetooth connections in Windows or MacOS*  
+
+The usage is pretty simple. It's a single window where a path made of straight lines and arcs can be sketch.
+
+![pypath.py window](img/pypath_window.png)
+
+On the top a row of control buttons are placed as follow:
+- Connect - initialize the serial connection
+- Upload - upload the set of commands to the Dz3 *(green is serial available)*
+- GO - start single execution of the recorded path *(green is serial available)*
+- GO Loop - start execution of the path in loop *(green is serial available)*
+- STOP - send a stop command to Dz3
+- clr Dz3 - clear the path stored in Dz3 (arduino) memory
+- clr Canvas - clear the program canvas
+- undo - clears last move
+- snap to grid - toggle the snap to 10 by 10cm grid
+
+On the canvas the operations are based on mouse actions:
+- left click - add point and aline from previous to this point
+- wheel - zoom in/out
+- right click & drag - move canvas
+
+Adding the turn by arc is based on a angle and turn arc radius which can be set by the two sliders on the right. Mouse drag or mouse wheel allows to adjust those sliders.
+The arc is added based on the last point of the path. If there are no points (not even he one click) the arc can't be added.     
+

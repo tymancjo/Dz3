@@ -1,7 +1,7 @@
 from tkinter import *
 import math
 import serial
-from time import sleep
+# from time import sleep
 
 # ogólne funkcje
 def myround(x, base=5):
