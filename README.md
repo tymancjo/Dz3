@@ -23,7 +23,7 @@ The moving platform is made according to this block diagram:
 
 
 The electrical schematic looks like follow:
-![Dz3 Block Diagram](img/Schematic_Dz3-Dzordz3-robotplatform.png)
+![Dz3 Block Diagram](img/Schematic_Dz3-Dzordz3-robotplatform01.png)
 
 
 
