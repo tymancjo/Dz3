@@ -21,6 +21,7 @@ The whole Dz3 "ecosystem" is considered to be made of three block parts:
 The moving platform is made according to this block diagram:
 ![Dz3 Block Diagram](img/Dz3-Arduino-block.png)
 
+
 The electrical schematic looks like follow:
 ![Dz3 Block Diagram](img/Schematic_Dz3-Dzordz3-robotplatform.png)
 
