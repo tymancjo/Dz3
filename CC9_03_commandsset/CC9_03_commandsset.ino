@@ -4,21 +4,27 @@
 
 #include <AccelStepper.h>
 #include <MultiStepper.h>
-#include <Servo.h>
+
+
+// for the remote servos
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
 
 
 AccelStepper stepper1(AccelStepper::DRIVER, 8, 9);
 AccelStepper stepper2(AccelStepper::DRIVER, 6, 7);
 
-Servo myservo1;
-Servo myservo2;
-
 #define Front A6
 #define Back A7
-#define Servo1 3
-#define Servo2 5
 
+// kicking of the pwm module definition 
+// called this way, it uses the default address 0x40
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
+// defining the values used for PWM servo control 
+#define SERVOMIN  160 // This is the 'minimum' pulse length count (out of 4096)
+#define SERVOMAX  505 // This is the 'maximum' pulse length count (out of 4096)
+#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
 
 // ================================================================
 // ========= Handling serial input ================================
@@ -76,8 +82,8 @@ float lastV;
 float newV;
 
 // for servo
-int pos1 = 0;
-int pos2 = 0;
+const int pos0 = 0;
+const int servo_count = 16;
 
 
 
@@ -117,17 +123,6 @@ void setup() {
   pinMode(Front, INPUT_PULLUP);
   pinMode(Back, INPUT_PULLUP);
 
-  pinMode(3, OUTPUT);
-  pinMode(5, OUTPUT);
-
-  myservo1.attach(3);
-  myservo2.attach(5); 
-  myservo1.write(pos1);
-  myservo2.write(pos2);
-  
-  
-
-
   //DEFINING MOTORS
   stepper1.setMaxSpeed(max_speed);
   stepper1.setAcceleration(accl);
@@ -135,9 +130,23 @@ void setup() {
   stepper2.setMaxSpeed(max_speed);
   stepper2.setAcceleration(accl);
 
+  // preparing the PWM module to work with servos:
+  pwm.begin();
+  pwm.setOscillatorFrequency(27000000);
+  pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
 
+  delay(10); // Just to give it some time to catch up...
 
-  Serial.print("Startup...");
+  Serial.println("Startup...");
+  Serial.println("Zeroing servos on PWM module...");
+
+  for (int i=0; i < servo_count; i++){
+    Serial.print(i);
+    pwm.setPWM(i, 0, (int) map(pos0,0,180,SERVOMIN,SERVOMAX));
+    delay(10);
+    }
+
+  
 
 }
 
@@ -266,23 +275,23 @@ void loop() {
         break;
 
       case 41:
-        // set servo1 position
-        // analogWrite(Servo1, map(param[0], 0,180,0,255));
-        pos1 = (int) constrain(param[0], 0,180);
-        myservo1.write(pos1); 
-        Serial.print(pos1);
-        Serial.println(" servo1, #D");
+        // set servos position control
+        // params:
+        // 0 - servo chanellnumber
+        // 1- set degrees (0 to 180 deg)
+        
+        int servo = (int) param[0];
+        int pos = (int) constrain(param[1], 0,180);
+
+        // sent thecommand to servo
+        pwm.setPWM(servo, 0, (int) map(pos,0,180,SERVOMIN,SERVOMAX)); 
+        
+        Serial.print(pos);
+        Serial.println(" servo, #D");
         
         break;
 
       case 42:
-        // set servo2 position
-        // analogWrite(Servo2, map(param[0], 0,180,0,255));
-        pos2 = (int) constrain(param[0], 0,180);
-        myservo2.write(pos2);
-        
-        Serial.print(pos2);
-        Serial.println(" servo2, #D");
         break;
         
       default:
