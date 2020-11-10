@@ -33,7 +33,7 @@ cap.set(3, W)
 cap.set(4, H)
 
 # default is to try showthe video window
-show_window = not True
+show_window = True
 
 # trying to use the camera
 try:
