@@ -107,7 +107,7 @@ Kd_angle = 0#0.01
 # distance part:
 target_distance = 550 #[mm]
 dist_death_zone = 10 #[cm]
-Kp_dist = 0.05
+Kp_dist = 0#0.05
 Ki_dist = 0#0.00005
 Kd_dist = 0#0.01
 
@@ -121,9 +121,14 @@ dist_error_last = 0;
 # Camera servo control variables (up/down move)
 up_error = 0;
 up_error_death_zone = 6
-Kp_up = 0.01
+Kp_up = 0.03
+Ki_up = 0.00005
+Kd_up = 0.01
+
+angle_up_integral = 0
 angle_up_previous = 0
 angle_up = 30;
+previous_up_error = 0
 
 # flag to track if last loop was stopping Dz3
 last_was_zero = False
@@ -196,21 +201,26 @@ while True:
         turn_angle = 0;
         move_distance = 0;
 
-        #experiment with camera on servo
+        # experiment with camera on servo
         # movingthe camera up/down to follow the ball 
         
-        # if abs(up_error) > up_error_death_zone:
-        #     angle_up += Kp_up * up_error
-        #     angle_up = int(max(0, min(90, angle_up)))
+        if abs(up_error) > up_error_death_zone:
+                    
+            angle_up += Kp_up * up_error + Ki_up * angle_up_integral + Kd_up * (up_error - previous_up_error)
             
-        #     if angle_up_previous != angle_up:
-        #         message = f'<41,{angle_up}, 0, 0>'
-        #         print(message)
-        #         try:
-        #             ser.write(message.encode('utf-8'))
-        #         except:
-        #             pass
-        # angle_up_previous = angle_up
+            angle_up = int(max(0, min(90, angle_up)))
+            
+            if angle_up_previous != angle_up:
+                message = f'<41,0,{angle_up}, 0>'
+                print(message)
+                try:
+                    ser.write(message.encode('utf-8'))
+                except:
+                    pass
+                    
+        angle_up_previous = angle_up
+        angle_up_integral += up_error
+        previous_up_error = up_error
         
         # # rise hand as yousee the ball!!!
         # if not hand_up:
@@ -304,6 +314,18 @@ while True:
                     ser.write(message.encode('utf-8'))
                 except:
                     pass
+                
+                # and following with camera up-down
+                angle_up += 2 * Kp_up * previous_up_error
+                angle_up = int(max(0, min(90, angle_up)))
+            
+                message = f'<41,0,{angle_up}, 0>'
+                print(message)
+                try:
+                    ser.write(message.encode('utf-8'))
+                except:
+                    pass
+                    
             else:
                 # if we didn't already - we send stop command
                 # print(f"No ball for {no_ball_loops} loops")
