@@ -107,7 +107,7 @@ Kd_angle = 0#0.01
 # distance part:
 target_distance = 550 #[mm]
 dist_death_zone = 10 #[cm]
-Kp_dist = 0#0.05
+Kp_dist = 0.05
 Ki_dist = 0#0.00005
 Kd_dist = 0#0.01
 
@@ -122,7 +122,7 @@ dist_error_last = 0;
 up_error = 0;
 up_error_death_zone = 6
 Kp_up = 0.03
-Ki_up = 0.00005
+Ki_up = 0.0000005
 Kd_up = 0.01
 
 angle_up_integral = 0
@@ -346,6 +346,14 @@ while True:
                 
                 if boring_loops > 30:
                     boring_loops = 0
+                    
+                    message = f'<41,0,30, 0>'
+                    print(message)
+                    try:
+                        ser.write(message.encode('utf-8'))
+                    except:
+                        pass
+                        
                     # if we wait long we search around
                     message = f'<1,0,360,500>'
                     print(message.encode('utf-8'))
