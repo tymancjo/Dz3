@@ -134,6 +134,7 @@ previous_up_error = 0
 last_was_zero = False
 # for how long there was no ball in frame detected 
 no_ball_loops = 0;
+search_loops = 0;
 # memorizing last command
 last_command = ""
 
@@ -307,6 +308,7 @@ while True:
 
         else:   
                 no_ball_loops += 1
+
                 if (no_ball_loops < 100) and  (not last_angle == 0):
                     # we turn as last - to check if the ball roll out of frame
                     # message = f'<1,{last_distance},{last_angle},1250>'
@@ -317,7 +319,8 @@ while True:
                         pass
                     
                     # and following with camera up-down
-                    angle_up += 2 * Kp_up * previous_up_error
+                    # and making it smallerin each loop
+                    angle_up += ( 2 * Kp_up * previous_up_error * (100 - no_ball_loops) / 100  )
                     angle_up = int(max(0, min(90, angle_up)))
                 
                     message = f'<41,0,{angle_up}, 0>'
@@ -343,12 +346,16 @@ while True:
                                 pass
 
                     boring_loops += 1;
-                    print("Gimme Ball!!!!")
+                    # print("Gimme Ball!!!!")
                     
                     if boring_loops > 30:
                         boring_loops = 0
+                        search_loops += 1
                         
                         message = f'<41,0,30, 0>'
+                        angle_up = 30;
+                        last_was_zero = True
+                        
                         print(message)
                         try:
                             ser.write(message.encode('utf-8'))
@@ -356,13 +363,45 @@ while True:
                             pass
                             
                         # if we wait long we search around
-                        message = f'<1,0,360,500>'
-                        print(message.encode('utf-8'))
-                        last_was_zero = True
-                        try:
-                            ser.write(message.encode('utf-8'))
-                        except:
-                            pass
+                        if search_loops == 1:
+                            
+                            message = f'<1,0,360,500>'
+                            print("looking around...")
+                            print(message.encode('utf-8'))
+                            try:
+                                ser.write(message.encode('utf-8'))
+                            except:
+                                pass
+
+                        elif search_loops == 5:
+                            message = f'<1,0,-360,500>'
+                            print("looking around...")
+                            print(message.encode('utf-8'))
+                            try:
+                                ser.write(message.encode('utf-8'))
+                            except:
+                                pass
+
+                        elif search_loops == 15:
+                            message = f'<1,15,0,500>'
+                            print("looking around... moving...")
+                            print(message.encode('utf-8'))
+                            try:
+                                ser.write(message.encode('utf-8'))
+                            except:
+                                pass
+                        
+                        elif search_loops == 20:
+                            message = f'<1,10,45,500>'
+                            print("looking around... moving...")
+                            print(message.encode('utf-8'))
+                            search_loops = 0
+                            try:
+                                ser.write(message.encode('utf-8'))
+                            except:
+                                pass
+
+
 
 
                 # if hand_up:
@@ -405,7 +444,7 @@ while True:
     except KeyboardInterrupt:
         print("")
         print("Releasing resources...")
-        
+
         # Releasing resources 
         cap.release()
         cv2.destroyAllWindows()
