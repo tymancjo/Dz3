@@ -105,7 +105,7 @@ Ki_angle = 0#0.0001
 Kd_angle = 0#0.01
 
 # distance part:
-target_distance = 550 #[mm]
+target_distance = 350 #[mm]
 dist_death_zone = 10 #[cm]
 Kp_dist = 0.05
 Ki_dist = 0#0.00005
@@ -251,7 +251,8 @@ while True:
             if abs(move_distance) < abs(last_distance) and direction:
                 move_distance = 0
             
-            the_speed = 1600 + abs(move_distance) * 55
+            # the_speed = 1600 + abs(move_distance) * 55
+            the_speed = 2500
             
             # adding some general death zone
             if abs(move_distance) > dist_death_zone or abs(turn_angle) > angle_death_zone : 
