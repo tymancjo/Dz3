@@ -11,20 +11,6 @@ import numpy as np
 import serial
 import math
 import sys
-from time import sleep
-from Dz3 import Dz3_library as dz
-import os
-import subprocess
-
-
-# trying the system shell command execution
-# to run the bluetooth connection
-BLE = subprocess.Popen("ble-serial -d 88:25:83:f0:fe:e6", shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-print(BLE.communicate)
-# givingit a bit of time
-sleep(1)
-
-
 
 # Trying to connect via ble-serial to the arduino part of Dz3
 #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
@@ -35,6 +21,8 @@ try:
 except:
     ble_connected = False
     print("Serial BT port error...")
+
+#  
 
 # Turning on the webcam
 cap = cv2.VideoCapture(2)
@@ -112,25 +100,41 @@ distance = 0
 # stetup of the PID controllers for move and turn.
 # turn part:
 angle_death_zone = 1
-PID_angle = dz.PID(0.05, 0, 0, x_medium, False)
+Kp_angle = 0.05
+Ki_angle = 0#0.0001
+Kd_angle = 0#0.01
 
 # distance part:
 target_distance = 350 #[mm]
 dist_death_zone = 10 #[cm]
-PID_distance = dz.PID(0.05, 0, 0,target_distance, False)
+Kp_dist = 0.05
+Ki_dist = 0#0.00005
+Kd_dist = 0#0.01
+
+# stuff for PID
+# variables required for my simplified PID algorithm 
+turn_error_memory = 0;
+dist_error_memory = 0;
+turn_error_last = 0;
+dist_error_last = 0;
 
 # Camera servo control variables (up/down move)
-PID_camera = dz.PID(0.03, 0.0000005, 0.01, center_y, False)
+up_error = 0;
 up_error_death_zone = 6
+Kp_up = 0.03
+Ki_up = 0.0000005
+Kd_up = 0.01
+
+angle_up_integral = 0
+angle_up_previous = 0
 angle_up = 30;
-angle_up_previous = 30;
+previous_up_error = 0
 
 # flag to track if last loop was stopping Dz3
 last_was_zero = False
 # for how long there was no ball in frame detected 
 no_ball_loops = 0;
 search_loops = 0;
-
 # memorizing last command
 last_command = ""
 
@@ -139,6 +143,7 @@ last_distance = 0
 
 # flag for the second servo - the hand one
 hand_up = False
+
 
 # main loop 
 while True:
@@ -177,15 +182,34 @@ while True:
             # drawing lines from bottom center to the detected ball
             cv2.line(frame, (x_medium, 0), (x_medium, H), (0, 255, 0), 2)
             cv2.line(frame, (0, y_medium), (W, y_medium), (0, 255, 0), 2)
+            
+            # moving around - calculating the distance of the ball from desired location (middle)
+            turn_error = center - x_medium;
+            dist_error = distance - target_distance;
+            up_error = center_y - y_medium;
+
+            # for pid's
+            # turning
+            turn_error_memory += turn_error
+            turn_error_delta = turn_error - turn_error_last
+            turn_error_last = turn_error
+            
+            # moving
+            dist_error_memory += dist_error
+            dist_error_delta = dist_error - dist_error_last
+            dist_error_last = dist_error
 
             # resseting the PID outpuds before calculations
             turn_angle = 0;
             move_distance = 0;
 
-            # camera servo moving up and down 
-            if abs(PID_camera.get_error(y_medium)) > up_error_death_zone:
+            # experiment with camera on servo
+            # movingthe camera up/down to follow the ball 
+            
+            if abs(up_error) > up_error_death_zone:
                         
-                angle_up += PID_camera.update(y_medium)
+                angle_up += Kp_up * up_error + Ki_up * angle_up_integral + Kd_up * (up_error - previous_up_error)
+                
                 angle_up = int(max(0, min(90, angle_up)))
                 
                 if angle_up_previous != angle_up:
@@ -195,15 +219,30 @@ while True:
                         ser.write(message.encode('utf-8'))
                     except:
                         pass
-                else:
-                    pass        
+                        
             angle_up_previous = angle_up
+            angle_up_integral += up_error
+            previous_up_error = up_error
+            
+            # # rise hand as yousee the ball!!!
+            # if not hand_up:
+            #     hand_up = True;
+            #     message = f'<42,140, 0, 0>'
+            #     print(message)
+            #     try:
+            #         ser.write(message.encode('utf-8'))
+            #     except:
+            #         pass
 
             # calculating PID for turning
-            turn_angle = int( PID_angle.update(x_medium) )
-            
+            turn_angle = int(Kp_angle * turn_error + Ki_angle * turn_error_memory + Kd_angle * turn_error_delta)            
+
             # calculating PID for moving
-            move_distance = math.ceil( PID_distance.update(distance) )
+            move_distance = math.ceil(Kp_dist * dist_error + Ki_dist * dist_error_memory + Kd_dist * dist_error_delta)
+
+            # experimental - loking for a way to get rid of the hickup-moves
+            # the idea is - if we want to move less than the last time, let's just don't sent another
+            # move command.
             
             direction = True
             if (move_distance < 0 and last_distance > 0) or (move_distance > 0 and last_distance <0):
@@ -212,6 +251,7 @@ while True:
             if abs(move_distance) < abs(last_distance) and direction:
                 move_distance = 0
             
+            # the_speed = 1600 + abs(move_distance) * 55
             the_speed = 2500
             
             # adding some general death zone
@@ -236,6 +276,13 @@ while True:
                     loop = 0
                     try:
                         ser.write(message.encode('utf-8'))
+                        ## the below allows to wait for a respond - but it didn't work well
+                        ## and created choppy motions
+                        # while (True):
+                        #     response = str(ser.readline())
+                        #     if "command" in response:
+                        #         # print("Command confirmed!")
+                        #         break
                     except:
                         pass
 
@@ -274,8 +321,7 @@ while True:
                     
                     # and following with camera up-down
                     # and making it smallerin each loop
-                    # angle_up += ( 2 * Kp_up * previous_up_error * (100 - no_ball_loops) / 100  )
-                    angle_up = PID_camera.update(PID_camera.last_current * (100 - no_ball_loops) / 100)
+                    angle_up += ( 2 * Kp_up * previous_up_error * (100 - no_ball_loops) / 100  )
                     angle_up = int(max(0, min(90, angle_up)))
                 
                     message = f'<41,0,{angle_up}, 0>'
@@ -287,6 +333,7 @@ while True:
                         
                 else:
                     # if we didn't already - we send stop command
+                    # print(f"No ball for {no_ball_loops} loops")
                     if not last_was_zero: 
                         message = f'<8,0,0,0>'
                         print(message.encode('utf-8'))
@@ -300,6 +347,7 @@ while True:
                                 pass
 
                     boring_loops += 1;
+                    # print("Gimme Ball!!!!")
                     
                     if boring_loops > 30:
                         boring_loops = 0
@@ -354,11 +402,34 @@ while True:
                             except:
                                 pass
 
+
+
+
+                # if hand_up:
+                #     hand_up = False;
+                #     message = f'<42,5, 0, 0>'
+                #     print(message)
+                #     try:
+                #         ser.write(message.encode('utf-8'))
+                #     except:
+                #         pass
+
+                # if 40 < angle_up or angle_up < 25:  
+                #     angle_up = 30;
+                #     message = f'<41,30,0,0>'
+                #     print("cam level")
+                #     try:
+                #         ser.write(message.encode('utf-8'))
+                #     except:
+                #         pass
+
+
         # preparing the on screen displays
         if show_window:
             try:
                 cv2.putText(frame,str(int(size)), (10,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                 cv2.putText(frame,str(distance), (10,25), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
+                cv2.putText(frame,str(up_error), (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0))
                 cv2.imshow("Frame", frame)
             except:
                 show_window= False
@@ -371,7 +442,6 @@ while True:
         # if ESC or q is pressed we end execution 
         if key == 27 or key==ord('q'):
             break
-    
     except KeyboardInterrupt:
         print("")
         print("Releasing resources...")
@@ -379,10 +449,6 @@ while True:
         # Releasing resources 
         cap.release()
         cv2.destroyAllWindows()
-
-        # And on exit we have the killing of the process 
-        effect = os.killpg(os.getpgid(BLE.pid), 15)
-        print(f'Closing the BLE serial... {effect}')
         
         sys.exit("exiting to system... thank you!")
 
@@ -390,6 +456,3 @@ while True:
 # Releasing resources 
 cap.release()
 cv2.destroyAllWindows()
-# And on exit we have the killing of the process 
-effect = os.killpg(os.getpgid(BLE.pid), 15)
-print(f'Closing the BLE serial... {effect}')
