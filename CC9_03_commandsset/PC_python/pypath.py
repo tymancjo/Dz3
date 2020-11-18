@@ -1,14 +1,23 @@
 from tkinter import *
 import math
 import serial
+import bluepy.btle as btle
+from time import sleep
 # from time import sleep
 
-# ogólne funkcje
+# ogólne funkcje i klasy
 def myround(x, base=5):
     # rounding to the given base, used for snaps
     return base * round(x/base) 
 
+# na potrzeby komunikacji z BLE bezpośrednio
+# użycie biblioteki bluepy - nie do końca rozumiem jak to działa :)
+class ReadDelegate(btle.DefaultDelegate):
+    def handleNotification(self, cHandle, data):
+        print(data.decode("utf-8"))
+
 class Paint(object):
+    # this is the main object that contain the entire app windo and object
 
     DEFAULT_PEN_SIZE = 5.0
     DEFAULT_COLOR = 'black'
@@ -74,7 +83,7 @@ class Paint(object):
         # self.go_right.bind("<ButtonPress>", self.goRight)
         # self.go_right.bind("<ButtonRelease>", self.goStop)
 
-        # anglelabel stuff
+        # turning by arc  stuff
         self.alphatxt = Label(self.root, text = "Turning by angle ")
         self.alphatxt.grid(row=1, column=10)
         self.alpha_slider = Scale(self.root, from_=360, to=-360, orient=HORIZONTAL, command=self.getAlpha)
@@ -136,7 +145,6 @@ class Paint(object):
         self.color = self.DEFAULT_COLOR
         self.eraser_on = False
         self.active_button = self.pen_button
-        # self.c.bind('<B1-Motion>', self.pointer)
         self.c.bind('<ButtonRelease-1>', self.pointerUp)
         self.c.bind('<B3-Motion>', self.movecanvas)
         self.c.bind('<Button-3>', self.setmove)
@@ -154,6 +162,12 @@ class Paint(object):
         self.theGrid(self.choose_size_button.get());   
 
     def connect(self):
+        # procedure to connect ot the Arduino part of Dżordż
+        # procedure is to try:
+        # connect to a serial port on this machine /tmp/ttyBLE
+        # if not successes trying to connect to the BLE directly 
+        # the adress of the BT BLE of Dżordż is 88:25:83:f0:fe:e6
+ 
         print("Connecting...")
         try:
             self.ser = serial.Serial('/tmp/ttyBLE', timeout=1)
@@ -164,10 +178,24 @@ class Paint(object):
             self.is_serial = True
         except:
             print("Serial BT port error...")
-            self.color_button.configure(background = "red")
-            self.go_button.configure(background = "red")
-            self.loop_button.configure(background = "red")
-            self.is_serial = False
+            print("trying direct BLE connection...")
+            try:
+                self.BTEperihibal = btle.Peripheral("88:25:83:f0:fe:e6", timeout=3)
+                print(f'BTE {self.BTEperihibal}')
+                self.BTEservice = self.BTEperihibal.getServiceByUUID("0000ffe0-0000-1000-8000-00805f9b34fb")
+                self.Dzordz = self.BTEservice.getCharacteristics()[0]
+
+                self.color_button.configure(background = "blue")
+                self.go_button.configure(background = "blue")
+                self.loop_button.configure(background = "blue")
+                self.is_serial = False
+                self.is_BLE = True
+            except:
+                self.color_button.configure(background = "red")
+                self.go_button.configure(background = "red")
+                self.loop_button.configure(background = "red")
+                self.is_serial = False
+                self.is_BLE = False
 
     def toggle_snap(self):
         self.snap = not self.snap
@@ -176,6 +204,12 @@ class Paint(object):
         else:
             self.snap_button.configure(background = "lightgray")
 
+    def BLE_sent(self, command):
+        self.Dzordz.write(bytes(command, "utf-8"))
+        
+        self.BTEperihibal.withDelegate(ReadDelegate())
+        while self.BTEperihibal.waitForNotifications(0.1):
+            pass
             
     def anle_dn(self, *args):
         self.alpha_slider.set(myround(self.alpha_slider.get())-5)
@@ -246,7 +280,6 @@ class Paint(object):
 
         return ( x2, y2 )
 
-
     def insertArc(self, *args):
         
         if len(self.points):
@@ -276,7 +309,6 @@ class Paint(object):
             # adding command to reset the speed back after turn slowly
             self.commands.append((0,0,9999,dA))
         
-
     def goUp(self, *args):
         
         if self.go_up["state"] == "active":
@@ -298,7 +330,6 @@ class Paint(object):
                 self.ser.write(message.encode('utf-8'))
             except:
                 pass
-
 
     def goLeft(self, *args):
         message = f'<1,0,360,300>'
@@ -369,8 +400,6 @@ class Paint(object):
         
         x0, y0 = self.translateclick
         x, y = self.oldtranslate 
-        # x0 = x
-        # y0 = y
 
         x += (event.x / localscale) - x0
         y += (event.y / localscale) - y0 
@@ -380,6 +409,11 @@ class Paint(object):
         self.theGrid(1)  
 
     def projection(self,point):
+        """
+        This function recalculate the real life coordinates
+        to the screen canvas pixel coordinates
+        """
+
         #  grabbing the scale
         localscale = 1/(self.choose_size_button.get() /100)
         shift_x, shift_y = self.translate;
@@ -392,6 +426,10 @@ class Paint(object):
         return (x, y)
 
     def projection_back(self, point):
+        """
+        This functions recalculate the screen canvas pixel coordinates
+        to real life coordinates
+        """
         #  grabbing the scale
         localscale = (self.choose_size_button.get() /100)
         
@@ -405,14 +443,14 @@ class Paint(object):
         return (x, y)
 
     def theGrid(self, scaleval):
-        
+        """
+        This procedure redraw the canvas with grid and all other stuff
+        """        
         self.scrClr();
 
         if len(self.gridlines) > 0:
             for gline in self.gridlines:
                 self.c.delete(gline)
-
-        
 
         spc100cm = 10 * 100 / self.choose_size_button.get() #100cm in pixels
 
@@ -443,7 +481,6 @@ class Paint(object):
         # self.reDraw();
         self.redraw_from_commands()
 
-
     def update(self):
         self.anglelabel.config(text = str(self.globalAngle) )
 
@@ -451,17 +488,14 @@ class Paint(object):
         '''calculate distance between 2 points'''
         return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
-    # def activate_button(self, some_button, eraser_mode=False):
-    #     self.active_button.config(relief=RAISED)
-    #     some_button.config(relief=SUNKEN)
-    #     self.active_button = some_button
-    #     self.eraser_on = eraser_mode
-
     def reset(self, event):
         self.old_x, self.old_y = None, None
 
-
     def showTrajectory(self, event):
+        """
+        This procedure draws the gray line as
+        prediction of the next piece of path
+        """
         self.drivescale = self.choose_size_button.get() /100
         shift_x, shift_y = self.translate;
 
@@ -472,7 +506,6 @@ class Paint(object):
                 pass
 
             _x,_y = self.projection(self.points[-1])
-
 
             x = event.x * self.drivescale - shift_x
             y = event.y * self.drivescale - shift_y
@@ -487,8 +520,10 @@ class Paint(object):
                                width=self.line_width - 2, fill='gray',
                                capstyle=ROUND, smooth=TRUE, splinesteps=36)
 
-
     def pointerUp(self,event):
+        """
+        This procedure is tha main part of reacting on the user mouse click
+        """
         self.drivescale = self.choose_size_button.get() /100
         shift_x, shift_y = self.translate;
 
@@ -585,7 +620,6 @@ class Paint(object):
                 self.commands.append((dL,0,0,dA))
                 print(self.commands[-1])
     
-
     def sent_serial(self):
         # first sent the set of sequence commands
         if self.is_serial:
@@ -599,9 +633,16 @@ class Paint(object):
                     if "Step added" in response:
                         print("Command confirmed!")
                         break
+        elif self.is_BLE:
+            for command in self.commands:
+                message = f'<20,{int(command[0])},{int(command[1])},{int(command[2])}>'
+                self.BLE_sent(message)
 
     def redraw_from_commands(self):
-        # the idea of this procedure is to be able to redraw the path based on the commands list.
+        """
+        the idea of this procedure is to be able 
+        to redraw the path based on the commands list.
+        """
 
         if len(self.commands):
             # lets bring the 1st point position
@@ -652,24 +693,38 @@ class Paint(object):
                         x,y = self.drawArc((x,y), azimuth, length, angle)
                         azimuth += angle
 
-                # print(f"Azimuth: {azimuth} dA: {dA}")
             self.points[-1] = (x,y) # to compensate the shifts due to redraws angles 
             self.old_x = x
             self.old_y = y
             
     def go(self):
+        """
+        Sending the start sequence command to Dżordż
+        """
         if self.is_serial:
             # sent the GO command
             message = f'<30,0,0,0>'
             self.ser.write(message.encode('utf-8'))
             print(message.encode('utf-8'))
+        elif self.is_BLE:
+            # sent the GO command
+            message = f'<30,0,0,0>'
+            self.BLE_sent(message)
 
     def goLoop(self):
+        """
+        Sending the start sequence in loop command to Dżordż
+        """
         if self.is_serial:
             # sent the GO command
             message = f'<33,0,0,0>'
             self.ser.write(message.encode('utf-8'))
             print(message.encode('utf-8'))
+
+        elif self.is_BLE:
+            # sent the GO command
+            message = f'<33,0,0,0>'
+            self.BLE_sent(message)
 
     def scrClr(self):
         try:
@@ -684,8 +739,6 @@ class Paint(object):
             self.c.delete(txt)
         for joint in self.joints:
             self.c.delete(joint)
-
-
 
     def clear(self):
         self.scrClr();
@@ -710,6 +763,11 @@ class Paint(object):
             self.ser.write(message.encode('utf-8'))
             # print(message.encode('utf-8'))
             print(message)
+
+        elif self.is_BLE:
+            # sent the GO command
+            message = f'<39,0,0,0>'
+            self.BLE_sent(message)
 
 
     def undo(self):
