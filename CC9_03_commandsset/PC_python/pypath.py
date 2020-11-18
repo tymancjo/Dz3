@@ -1,7 +1,11 @@
 from tkinter import *
 import math
 import serial
+
+# used blte.py from https://github.com/GunnarI/bluepy/tree/add-timeout-to-perhiperal
+# as it has a timeout on connection available
 import bluepy.btle as btle
+
 from time import sleep
 # from time import sleep
 
