@@ -13,28 +13,68 @@ import math
 import sys
 from time import sleep
 from Dz3 import Dz3_library as dz
-import os
-import subprocess
+# import os
+# import subprocess
+
+# used blte.py from https://github.com/GunnarI/bluepy/tree/add-timeout-to-perhiperal
+# as it has a timeout on connection available
+import bluepy.btle as btle
 
 
 # trying the system shell command execution
 # to run the bluetooth connection
-BLE = subprocess.Popen("ble-serial -d 88:25:83:f0:fe:e6", shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-print(BLE.communicate)
-# givingit a bit of time
-sleep(1)
+# BLE = subprocess.Popen("ble-serial -d 88:25:83:f0:fe:e6", shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+# print(BLE.communicate)
+# # givingit a bit of time
+# sleep(1)
+
+
 
 
 
 # Trying to connect via ble-serial to the arduino part of Dz3
 #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
 ble_connected = True
+BT_connected = False
+
 try:
     ser = serial.Serial('/tmp/ttyBLE', timeout=1)
     ser.baudrate = 9600
 except:
     ble_connected = False
     print("Serial BT port error...")
+    print("Going to try direct connection to BT BLE...")
+
+    try:
+        BTEperihibal = btle.Peripheral("88:25:83:f0:fe:e6", timeout=3)
+        print(f'BTE {BTEperihibal}')
+        BTEservice = BTEperihibal.getServiceByUUID("0000ffe0-0000-1000-8000-00805f9b34fb")
+        Dzordz = BTEservice.getCharacteristics()[0]
+        BT_connected = True
+
+    except:
+        BT_connected = False
+
+
+def BTsent(message, wait=False):
+    """
+    Sending command message to Dżordż
+    """
+    if ble_connected:
+        try:
+            ser.write(message.encode('utf-8'))
+        except:
+            print("Error sending over serial :(")
+    
+    elif BT_connected:
+        Dzordz.write(bytes(message, "utf-8"))
+
+        if wait:
+            BTEperihibal.withDelegate(ReadDelegate())
+            while BTEperihibal.waitForNotifications(0.1):
+                pass
+    else:
+        print("No connection is available...")
 
 # Turning on the webcam
 cap = cv2.VideoCapture(2)
@@ -191,10 +231,12 @@ while True:
                 if angle_up_previous != angle_up:
                     message = f'<41,0,{angle_up}, 0>'
                     print(message)
-                    try:
-                        ser.write(message.encode('utf-8'))
-                    except:
-                        pass
+
+                    BTsent(message)
+                    # try:
+                    #     ser.write(message.encode('utf-8'))
+                    # except:
+                    #     pass
                 else:
                     pass        
             angle_up_previous = angle_up
@@ -234,10 +276,11 @@ while True:
                 # this allows to skip sending messages for given numbers of loop
                 if loop >= loopdelay and last_command != message:    
                     loop = 0
-                    try:
-                        ser.write(message.encode('utf-8'))
-                    except:
-                        pass
+                    BTsent(message)
+                    # try:
+                    #     ser.write(message.encode('utf-8'))
+                    # except:
+                    #     pass
 
                 last_command = message
                 last_angle= turn_angle
@@ -254,11 +297,12 @@ while True:
 
                     if loop > loopdelay:    
                         loop = 0
-                        try:
-                            ser.write(message.encode('utf-8'))
-                            pass
-                        except:
-                            pass
+                        BTsent(message)
+                        # try:
+                        #     ser.write(message.encode('utf-8'))
+                        #     pass
+                        # except:
+                        #     pass
 
         else:   
                 no_ball_loops += 1
@@ -267,10 +311,11 @@ while True:
                     # we turn as last - to check if the ball roll out of frame
                     # message = f'<1,{last_distance},{last_angle},1250>'
                     message = f'<1,0,{last_angle},1250>'
-                    try:
-                        ser.write(message.encode('utf-8'))
-                    except:
-                        pass
+                    BTsent(message)
+                    # try:
+                    #     ser.write(message.encode('utf-8'))
+                    # except:
+                    #     pass
                     
                     # and following with camera up-down
                     # and making it smallerin each loop
@@ -280,10 +325,11 @@ while True:
                 
                     message = f'<41,0,{angle_up}, 0>'
                     print(message)
-                    try:
-                        ser.write(message.encode('utf-8'))
-                    except:
-                        pass
+                    BTsent(message)
+                    # try:
+                    #     ser.write(message.encode('utf-8'))
+                    # except:
+                    #     pass
                         
                 else:
                     # if we didn't already - we send stop command
@@ -294,10 +340,11 @@ while True:
 
                         if loop > loopdelay:    
                             loop = 0
-                            try:
-                                ser.write(message.encode('utf-8'))
-                            except:
-                                pass
+                            BTsent(message)
+                            # try:
+                            #     ser.write(message.encode('utf-8'))
+                            # except:
+                            #     pass
 
                     boring_loops += 1;
                     
@@ -310,10 +357,11 @@ while True:
                         last_was_zero = True
                         
                         print(message)
-                        try:
-                            ser.write(message.encode('utf-8'))
-                        except:
-                            pass
+                        BTsent(message)
+                        # try:
+                        #     ser.write(message.encode('utf-8'))
+                        # except:
+                        #     pass
                             
                         # if we wait long we search around
                         if search_loops == 1:
@@ -321,38 +369,42 @@ while True:
                             message = f'<1,0,360,500>'
                             print("looking around...")
                             print(message.encode('utf-8'))
-                            try:
-                                ser.write(message.encode('utf-8'))
-                            except:
-                                pass
+                            BTsent(message)
+                            # try:
+                            #     ser.write(message.encode('utf-8'))
+                            # except:
+                            #     pass
 
                         elif search_loops == 5:
                             message = f'<1,0,-360,500>'
                             print("looking around...")
                             print(message.encode('utf-8'))
-                            try:
-                                ser.write(message.encode('utf-8'))
-                            except:
-                                pass
+                            BTsent(message)
+                            # try:
+                            #     ser.write(message.encode('utf-8'))
+                            # except:
+                            #     pass
 
                         elif search_loops == 15:
                             message = f'<1,15,0,500>'
                             print("looking around... moving...")
                             print(message.encode('utf-8'))
-                            try:
-                                ser.write(message.encode('utf-8'))
-                            except:
-                                pass
+                            BTsent(message)
+                            # try:
+                            #     ser.write(message.encode('utf-8'))
+                            # except:
+                            #     pass
                         
                         elif search_loops == 20:
                             message = f'<1,10,45,500>'
                             print("looking around... moving...")
                             print(message.encode('utf-8'))
+                            BTsent(message)
                             search_loops = 0
-                            try:
-                                ser.write(message.encode('utf-8'))
-                            except:
-                                pass
+                            # try:
+                            #     ser.write(message.encode('utf-8'))
+                            # except:
+                            #     pass
 
         # preparing the on screen displays
         if show_window:
@@ -381,8 +433,6 @@ while True:
         cv2.destroyAllWindows()
 
         # And on exit we have the killing of the process 
-        effect = os.killpg(os.getpgid(BLE.pid), 15)
-        print(f'Closing the BLE serial... {effect}')
         
         sys.exit("exiting to system... thank you!")
 
@@ -390,6 +440,6 @@ while True:
 # Releasing resources 
 cap.release()
 cv2.destroyAllWindows()
-# And on exit we have the killing of the process 
-effect = os.killpg(os.getpgid(BLE.pid), 15)
-print(f'Closing the BLE serial... {effect}')
+
+
+
