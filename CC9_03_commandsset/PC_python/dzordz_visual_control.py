@@ -245,7 +245,8 @@ while True:
             turn_angle = int( PID_angle.update(x_medium) )
             
             # calculating PID for moving
-            move_distance = math.ceil( PID_distance.update(distance) )
+            move_distance = -1 * math.ceil( PID_distance.update(distance) )
+            
             
             direction = True
             if (move_distance < 0 and last_distance > 0) or (move_distance > 0 and last_distance <0):
