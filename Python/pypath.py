@@ -599,22 +599,26 @@ class Paint(object):
                 
                 dA = int(math.degrees(math.atan2(dY, dX)))
                 if len(self.commands) > 0:
-                    iA = self.commands[-1][3]
+                    # iA = self.commands[-1][3]
+                    iA = self.globalAngle
                 else:
                     iA= 90
 
                 A = dA - iA
 
-                if A < -180: 
-                    A = 360 + A
-                elif A > 180:
-                    A = A - 360
-                
-                # rolling the angle to range -360 to 360
+
+                # #rolling the angle to range -360 to 360
                 if A > 360:
                     A = A % 360
                 if A < -360:
                     A = A % 360
+
+                if A < -180: 
+                    A = 360 + A
+                elif A > 180:
+                    A = A - 360
+
+                print(f"A: {A}")
 
                 # tracking theglobal angle od Dz3
                 self.globalAngleLast.append( self.globalAngle);
@@ -625,7 +629,7 @@ class Paint(object):
                 
 
 
-                print(self.globalAngle)
+                # print(self.globalAngle)
                 self.update()
                 
 
