@@ -57,7 +57,7 @@ class Paint(object):
         self.pen_button.grid(row=0, column=7)
         
         self.snap_button = Button(self.root, text='snap to grid', command=self.toggle_snap)
-        self.snap_button.grid(row=0, column=10)
+        self.snap_button.grid(row=0, column=10, columnspan = 2)
 
         self.choose_size_button = Scale(self.root, from_=1, to=100, orient=HORIZONTAL, command=self.theGrid)
         self.choose_size_button.set(36)
@@ -67,47 +67,47 @@ class Paint(object):
         self.c.grid(row=1, columnspan=9, rowspan=30)
 
         # control buttons 
-        # self.go_up = Button(self.root, text='Up')
-        # self.go_up.grid(row=8, column=11)
-        # self.go_up.bind("<ButtonPress>",self.goUp)
-        # self.go_up.bind("<ButtonRelease>", self.goStop)
+        self.go_up = Button(self.root, text='Up')
+        self.go_up.grid(row=8, column=11)
+        self.go_up.bind("<ButtonPress>",self.goUp)
+        self.go_up.bind("<ButtonRelease>", self.goStop)
 
-        # self.go_dn = Button(self.root, text='Dn')
-        # self.go_dn.grid(row=9, column=11)
-        # self.go_dn.bind("<ButtonPress>", self.goDn)
-        # self.go_dn.bind("<ButtonRelease>", self.goStop)
+        self.go_dn = Button(self.root, text='Dn')
+        self.go_dn.grid(row=9, column=11)
+        self.go_dn.bind("<ButtonPress>", self.goDn)
+        self.go_dn.bind("<ButtonRelease>", self.goStop)
 
-        # self.go_left = Button(self.root, text='<<')
-        # self.go_left.grid(row=9, column=10)
-        # self.go_left.bind("<ButtonPress>", self.goLeft)
-        # self.go_left.bind("<ButtonRelease>", self.goStop)
+        self.go_left = Button(self.root, text='<<')
+        self.go_left.grid(row=9, column=10)
+        self.go_left.bind("<ButtonPress>", self.goLeft)
+        self.go_left.bind("<ButtonRelease>", self.goStop)
 
-        # self.go_right = Button(self.root, text='>>')
-        # self.go_right.grid(row=9, column=12)
-        # self.go_right.bind("<ButtonPress>", self.goRight)
-        # self.go_right.bind("<ButtonRelease>", self.goStop)
+        self.go_right = Button(self.root, text='>>')
+        self.go_right.grid(row=9, column=12)
+        self.go_right.bind("<ButtonPress>", self.goRight)
+        self.go_right.bind("<ButtonRelease>", self.goStop)
 
         # turning by arc  stuff
         self.alphatxt = Label(self.root, text = "Turning by angle ")
-        self.alphatxt.grid(row=1, column=10)
+        self.alphatxt.grid(row=1, column=10, columnspan=3)
         self.alpha_slider = Scale(self.root, from_=360, to=-360, orient=HORIZONTAL, command=self.getAlpha)
         self.alpha_slider.set(90)
         self.alpha_slider.grid(row=2, column=10, columnspan=4,sticky='NSEW')
 
         self.Rtxt = Label(self.root, text = "Turning Radius ")
-        self.Rtxt.grid(row=3, column=10)
+        self.Rtxt.grid(row=3, column=10, columnspan=3)
         self.R_slider = Scale(self.root, from_=0, to=100, orient=HORIZONTAL, command=self.getR)
         self.R_slider.set(30)
         self.R_slider.grid(row=4, column=10, columnspan=4,sticky='NSEW')
 
         self.anglelabeltxt = Label(self.root, text = "Current Angle: ")
-        self.anglelabeltxt.grid(row=6, column=10)
+        self.anglelabeltxt.grid(row=6, column=10, columnspan = 2)
         self.anglelabel = Label(self.root, text = "0")
         self.anglelabel.grid(row=6, column=11)
 
         # insertArc trigger button
         self.go_right = Button(self.root, text='Add Turn')
-        self.go_right.grid(row=5, column=10)
+        self.go_right.grid(row=5, column=10, columnspan = 4)
         self.go_right.bind("<ButtonPress>", self.insertArc)
 
         # somestuff to try straightline things
@@ -314,60 +314,48 @@ class Paint(object):
             self.commands.append((0,0,9999,dA))
         
     def goUp(self, *args):
-        
-        if self.go_up["state"] == "active":
-            message = f'<1,20,0,9999>'
+        message = f'<1,200,0,10000>'
+        if self.is_serial:
+            # sent the GO command
+            self.ser.write(message.encode('utf-8'))
             print(message.encode('utf-8'))
-            
-            try:
-                self.ser.write(message.encode('utf-8'))
-            except:
-                pass    
-
-            self.root.after(50, self.goUp)
-        else:
-            print("i'm done")
-            message = f'<8,0,0,0>'
-            print(message.encode('utf-8'))
-            
-            try:
-                self.ser.write(message.encode('utf-8'))
-            except:
-                pass
+        elif self.is_BLE:
+            # sent the GO command
+            self.BLE_sent(message)
 
     def goLeft(self, *args):
-        message = f'<1,0,360,300>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        message = f'<1,0,720,500>'
+        if self.is_serial:
+            # sent the GO command
+            self.ser.write(message.encode('utf-8'))
+            print(message.encode('utf-8'))
+        elif self.is_BLE:
+            # sent the GO command
+            self.BLE_sent(message)
 
     def goRight(self, *args):
-        message = f'<1,0,-360,300>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        message = f'<1,0,-720,500>'
+        if self.is_serial:
+            # sent the GO command
+            self.ser.write(message.encode('utf-8'))
+            print(message.encode('utf-8'))
+        elif self.is_BLE:
+            # sent the GO command
+            self.BLE_sent(message)
 
     def goDn(self, *args):
-        if self.go_dn["state"] == "active":
-            message = f'<1,-20,0,9999>'
+        message = f'<1,-200,0,10000>'
+        if self.is_serial:
+            # sent the GO command
+            self.ser.write(message.encode('utf-8'))
             print(message.encode('utf-8'))
-            
-            try:
-                self.ser.write(message.encode('utf-8'))
-            except:
-                pass    
+        elif self.is_BLE:
+            # sent the GO command
+            self.BLE_sent(message)
 
-            self.root.after(50, self.goDn)
-        else:
-            print("i'm done")
-            message = f'<8,0,0,0>'
-            print(message.encode('utf-8'))
-            
-            try:
-                self.ser.write(message.encode('utf-8'))
-            except:
-                pass
 
     def goStop(self, *args):
-        message = f'<8,0,0,0>'
+        message = f'<0,0,0,0>'
         if self.is_serial:
             # sent the GO command
             self.ser.write(message.encode('utf-8'))
