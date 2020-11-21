@@ -368,14 +368,24 @@ class Paint(object):
 
     def goStop(self, *args):
         message = f'<8,0,0,0>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
-
+        if self.is_serial:
+            # sent the GO command
+            self.ser.write(message.encode('utf-8'))
+            print(message.encode('utf-8'))
+        elif self.is_BLE:
+            # sent the GO command
+            self.BLE_sent(message)
+    
     def S(self, *args):
         # sent the GO command
         message = f'<0,0,0,0>'
-        self.ser.write(message.encode('utf-8'))
-        print(message.encode('utf-8'))
+        if self.is_serial:
+            # sent the GO command
+            self.ser.write(message.encode('utf-8'))
+            print(message.encode('utf-8'))
+        elif self.is_BLE:
+            # sent the GO command
+            self.BLE_sent(message)
 
     def zoom(self,event):
         self.choose_size_button.set(self.choose_size_button.get() + event.delta);

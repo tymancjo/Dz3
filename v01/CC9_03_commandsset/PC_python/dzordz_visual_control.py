@@ -17,23 +17,17 @@ from Dz3 import Dz3_library as dz
 # import subprocess
 
 # used blte.py from https://github.com/GunnarI/bluepy/tree/add-timeout-to-perhiperal
+# didn't try to install bluepy directly from this link
+# just replecing the blte.py
 # as it has a timeout on connection available
+# without it the program stuck on trying to connect if no BT was available
 import bluepy.btle as btle
-
-
-# trying the system shell command execution
-# to run the bluetooth connection
-# BLE = subprocess.Popen("ble-serial -d 88:25:83:f0:fe:e6", shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-# print(BLE.communicate)
-# # givingit a bit of time
-# sleep(1)
-
-
-
 
 
 # Trying to connect via ble-serial to the arduino part of Dz3
 #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
+# ble - represent the serial connection
+# BT - the direct ot BT connection flag
 ble_connected = True
 BT_connected = False
 
@@ -77,7 +71,8 @@ def BTsent(message, wait=False):
         print("No connection is available...")
 
 # Turning on the webcam
-cap = cv2.VideoCapture(2)
+# starting from the videocam with ID 0
+cap = cv2.VideoCapture(0)
 
 # Setting the resolution to work with
 W, H = (1280 // 2, 720 // 2)
@@ -299,11 +294,6 @@ while True:
                     if loop > loopdelay:    
                         loop = 0
                         BTsent(message)
-                        # try:
-                        #     ser.write(message.encode('utf-8'))
-                        #     pass
-                        # except:
-                        #     pass
 
         else:   
                 no_ball_loops += 1
@@ -313,10 +303,6 @@ while True:
                     # message = f'<1,{last_distance},{last_angle},1250>'
                     message = f'<1,0,{last_angle},1250>'
                     BTsent(message)
-                    # try:
-                    #     ser.write(message.encode('utf-8'))
-                    # except:
-                    #     pass
                     
                     # and following with camera up-down
                     # and making it smallerin each loop
@@ -327,10 +313,6 @@ while True:
                     message = f'<41,0,{angle_up}, 0>'
                     print(message)
                     BTsent(message)
-                    # try:
-                    #     ser.write(message.encode('utf-8'))
-                    # except:
-                    #     pass
                         
                 else:
                     # if we didn't already - we send stop command
@@ -342,10 +324,6 @@ while True:
                         if loop > loopdelay:    
                             loop = 0
                             BTsent(message)
-                            # try:
-                            #     ser.write(message.encode('utf-8'))
-                            # except:
-                            #     pass
 
                     boring_loops += 1;
                     
@@ -359,53 +337,28 @@ while True:
                         
                         print(message)
                         BTsent(message)
-                        # try:
-                        #     ser.write(message.encode('utf-8'))
-                        # except:
-                        #     pass
                             
                         # if we wait long we search around
                         if search_loops == 1:
                             
                             message = f'<1,0,360,500>'
                             print("looking around...")
-                            print(message.encode('utf-8'))
-                            BTsent(message)
-                            # try:
-                            #     ser.write(message.encode('utf-8'))
-                            # except:
-                            #     pass
 
                         elif search_loops == 5:
                             message = f'<1,0,-360,500>'
                             print("looking around...")
-                            print(message.encode('utf-8'))
-                            BTsent(message)
-                            # try:
-                            #     ser.write(message.encode('utf-8'))
-                            # except:
-                            #     pass
 
                         elif search_loops == 15:
                             message = f'<1,15,0,500>'
                             print("looking around... moving...")
-                            print(message.encode('utf-8'))
                             BTsent(message)
-                            # try:
-                            #     ser.write(message.encode('utf-8'))
-                            # except:
-                            #     pass
-                        
+
                         elif search_loops == 20:
                             message = f'<1,10,45,500>'
                             print("looking around... moving...")
-                            print(message.encode('utf-8'))
-                            BTsent(message)
                             search_loops = 0
-                            # try:
-                            #     ser.write(message.encode('utf-8'))
-                            # except:
-                            #     pass
+
+                        BTsent(message)
 
         # preparing the on screen displays
         if show_window:
@@ -434,13 +387,9 @@ while True:
         cv2.destroyAllWindows()
 
         # And on exit we have the killing of the process 
-        
         sys.exit("exiting to system... thank you!")
 
 
 # Releasing resources 
 cap.release()
 cv2.destroyAllWindows()
-
-
-
