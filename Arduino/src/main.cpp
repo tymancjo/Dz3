@@ -6,7 +6,7 @@
 // idea and TODO:
 // better read from serial implemented - or chenges to work as function
 // non blocking main loop - how to handle imminent STOP and SoftSTOP?
-// 
+// Current activity: moving the program follow to main loop instead of "While True"
 
 // **************************
 // libraries import handling
