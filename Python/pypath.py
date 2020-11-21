@@ -609,10 +609,23 @@ class Paint(object):
                     A = 360 + A
                 elif A > 180:
                     A = A - 360
+                
+                # rolling the angle to range -360 to 360
+                if A > 360:
+                    A = A % 360
+                if A < -360:
+                    A = A % 360
 
                 # tracking theglobal angle od Dz3
                 self.globalAngleLast.append( self.globalAngle);
                 self.globalAngle += A
+
+                if self.globalAngle > 360:
+                    self.globalAngle = self.globalAngle % 360
+                
+
+
+                print(self.globalAngle)
                 self.update()
                 
 
