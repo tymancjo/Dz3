@@ -1,15 +1,24 @@
 from tkinter import *
 import math
-import asyncio
-from bleak import BleakClient, BleakScanner 
-from bleak.exc import BleakError
-from time import sleep, thread_time
+import serial
+
+# used blte.py from https://github.com/GunnarI/bluepy/tree/add-timeout-to-perhiperal
+# as it has a timeout on connection available
+import bluepy.btle as btle
+
+from time import sleep
+# from time import sleep
 
 # ogólne funkcje i klasy
 def myround(x, base=5):
     # rounding to the given base, used for snaps
     return base * round(x/base) 
 
+# na potrzeby komunikacji z BLE bezpośrednio
+# użycie biblioteki bluepy - nie do końca rozumiem jak to działa :)
+class ReadDelegate(btle.DefaultDelegate):
+    def handleNotification(self, cHandle, data):
+        print(data.decode("utf-8"))
 
 class Paint(object):
     # this is the main object that contain the entire app windo and object
@@ -125,13 +134,12 @@ class Paint(object):
         self.oldtranslate= (0,0);
         self.intranslate = False;
         self.translateclick= (0,0);
+        
+        #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
+        self.connect()
 
         self.setup()
-        self.BTsetup()
         self.root.mainloop()
-
-        #  odpalenie BT com - na linux, z użyciem ble-serial dającego port /tmp/ttyBLE
-        # self.connect()
 
     def setup(self):
         self.old_x = None
@@ -157,100 +165,41 @@ class Paint(object):
 
         self.theGrid(self.choose_size_button.get());   
 
-    def BTsetup(self):
-        self.the_device = ""
-        self.the_service = ""
-        self.client = False
-        self.loop = False
-
-        self.is_serial = False
-        self.is_BLE = True
-
-
-    async def BTsearch(self):
-        devices = await BleakScanner.discover()
-        for i,d in enumerate(devices):
-            print(f"[{i}]\t{d.name}\t{d.address}")
-            if "BT05" in d.name:
-                print(f"Potenitial robot found @ {d.address}")
-                self.the_device = d.address
-
-
-    async def BTgetServices(self ):
-        device = await BleakScanner.find_device_by_address(self.the_device, timeout=20.0)
-        
-        if not device:
-            raise BleakError(f"A device with address {self.the_device} could not be found.")
-
-        async with BleakClient(device) as client:
-            svcs = await client.get_services()
-            print("Services:")
-            for service in svcs:
-                print(service)
-                if "Vendor specific" in str(service):
-                    print(service.characteristics)
-                    for inside in service.characteristics:
-                        print(f"Sub info properties: {inside.properties}")
-                        print(f"Sub info uuid: {inside.uuid}")
-                        self.the_service = inside.uuid
-
-    async def BTconnect(self):
-        """
-        The class method to connecto tot the BT robot
-        Based on the blake library for the BLE device operations.
-        """
+    def connect(self):
+        # procedure to connect ot the Arduino part of Dżordż
+        # procedure is to try:
+        # connect to a serial port on this machine /tmp/ttyBLE
+        # if not successes trying to connect to the BLE directly 
+        # the adress of the BT BLE of Dżordż is 88:25:83:f0:fe:e6
  
         print("Connecting...")
-        print("trying direct BLE connection...")
+        try:
+            self.ser = serial.Serial('/tmp/ttyBLE', timeout=1)
+            self.ser.baudrate = 9600
+            self.color_button.configure(background = "green")
+            self.go_button.configure(background = "green")
+            self.loop_button.configure(background = "green")
+            self.is_serial = True
+        except:
+            print("Serial BT port error...")
+            print("trying direct BLE connection...")
+            try:
+                self.BTEperihibal = btle.Peripheral("88:25:83:f0:fe:e6", timeout=3)
+                print(f'BTE {self.BTEperihibal}')
+                self.BTEservice = self.BTEperihibal.getServiceByUUID("0000ffe0-0000-1000-8000-00805f9b34fb")
+                self.Dzordz = self.BTEservice.getCharacteristics()[0]
 
-        self.client = BleakClient(self.the_device,timeout=10)
-        await self.client.connect()
-        connection_status = self.client.is_connected
-        print(f"Connection status: {connection_status}")
-
-        if connection_status:
-            print("Connected mode..")
-            self.color_button.configure(background = "blue")
-            self.go_button.configure(background = "blue")
-            self.loop_button.configure(background = "blue")
-            self.is_serial = False
-            self.is_BLE = True
-        else:
-            self.color_button.configure(background = "red")
-            self.go_button.configure(background = "red")
-            self.loop_button.configure(background = "red")
-            self.is_serial = False
-            self.is_BLE = False
-
-    async def BTdisconnect(self):
-            if self.client.is_connected:
-                await self.client.disconnect()
-                print("The robot have been disconnected...")
-            else:
-                print("No robot to be disconnected!")
-          
-    async def BTwrite(self, the_command, redial=True):
-        if self.client.is_connected:
-            await self.client.write_gatt_char(self.the_service,bytearray(the_command, "utf-8"), response=not True)
-        else:
-            print("No devce connected.")
-            if redial and self.the_service:
-                self.loop.run_until_complete(self.BTconnect()) 
-
-    def connect(self):
-        if not self.client:
-            print("Scanning for BLE devices...")
-            self.loop = asyncio.get_event_loop()
-            self.loop.run_until_complete(self.BTsearch())
-
-            if self.the_device:
-                print(f"there is Mariola at {self.the_device}")
-                self.loop.run_until_complete(self.BTgetServices())
-                if self.the_service:
-                    print(f"Found Vendor sercvice at {self.the_service}")
-                    self.loop.run_until_complete(self.BTconnect())
-        else:
-            print("Shall be already connected...")
+                self.color_button.configure(background = "blue")
+                self.go_button.configure(background = "blue")
+                self.loop_button.configure(background = "blue")
+                self.is_serial = False
+                self.is_BLE = True
+            except:
+                self.color_button.configure(background = "red")
+                self.go_button.configure(background = "red")
+                self.loop_button.configure(background = "red")
+                self.is_serial = False
+                self.is_BLE = False
 
     def toggle_snap(self):
         self.snap = not self.snap
@@ -260,7 +209,11 @@ class Paint(object):
             self.snap_button.configure(background = "lightgray")
 
     def BLE_sent(self, command):
-        self.loop.run_until_complete(self.BTwrite(command))
+        self.Dzordz.write(bytes(command, "utf-8"))
+        
+        self.BTEperihibal.withDelegate(ReadDelegate())
+        while self.BTEperihibal.waitForNotifications(0.1):
+            pass
             
     def anle_dn(self, *args):
         self.alpha_slider.set(myround(self.alpha_slider.get())-5)
@@ -844,6 +797,4 @@ class Paint(object):
             self.update();
             
 if __name__ == '__main__':
-    window = Paint()
-    if window.loop:
-        window.loop.run_until_complete(window.BTdisconnect())
+    Paint()
