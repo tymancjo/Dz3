@@ -54,7 +54,7 @@ class Paint(object):
         self.choose_size_button.set(36)
         self.choose_size_button.grid(row=30, column=10, columnspan=4,sticky='NSEW')
 
-        self.c = Canvas(self.root, bg='white', width=self.WIDTH, height=self.HEIGHT)
+        self.c = Canvas(self.root, bg='darkgray', width=self.WIDTH, height=self.HEIGHT)
         self.c.grid(row=1, columnspan=9, rowspan=30)
 
         # control buttons 
@@ -140,10 +140,11 @@ class Paint(object):
         self.drivescale = self.choose_size_button.get()
         self.color = self.DEFAULT_COLOR
         self.eraser_on = False
+        self.inmotion = False
         self.active_button = self.pen_button
         self.c.bind('<ButtonRelease-1>', self.pointerUp)
-        self.c.bind('<B3-Motion>', self.movecanvas)
-        self.c.bind('<Button-3>', self.setmove)
+        self.c.bind('<B1-Motion>', self.movecanvas)
+        self.c.bind('<Button-1>', self.setmove)
         self.c.bind('<MouseWheel>', self.zoom)
         self.c.bind('<Button-4>', self.zoomIn)
         self.c.bind('<Button-5>', self.zoomOut)
@@ -213,22 +214,27 @@ class Paint(object):
             self.color_button.configure(background = "blue")
             self.go_button.configure(background = "blue")
             self.loop_button.configure(background = "blue")
+            self.c.configure(bg='white')
             self.is_serial = False
             self.is_BLE = True
         else:
             self.color_button.configure(background = "red")
             self.go_button.configure(background = "red")
             self.loop_button.configure(background = "red")
+            self.c.configure(bg="red")
             self.is_serial = False
             self.is_BLE = False
 
     async def BTdisconnect(self):
-            if self.client.is_connected:
-                await self.client.disconnect()
-                print("The robot have been disconnected...")
+            if self.client:
+                if self.client.is_connected:
+                    await self.client.disconnect()
+                    print("The robot have been disconnected...")
+                else:
+                    print("No robot to be disconnected!")
             else:
                 print("No robot to be disconnected!")
-          
+
     async def BTwrite(self, the_command, redial=True):
         if self.client.is_connected:
             await self.client.write_gatt_char(self.the_service,bytearray(the_command, "utf-8"), response=not True)
@@ -249,6 +255,8 @@ class Paint(object):
                 if self.the_service:
                     print(f"Found Vendor sercvice at {self.the_service}")
                     self.loop.run_until_complete(self.BTconnect())
+            else:
+                self.c.configure(bg='red')
         else:
             print("Shall be already connected...")
 
@@ -456,6 +464,7 @@ class Paint(object):
         self.translate = (x, y)
 
         self.theGrid(1)  
+        self.inmotion = True
 
     def projection(self,point):
         """
@@ -573,101 +582,105 @@ class Paint(object):
         """
         This procedure is tha main part of reacting on the user mouse click
         """
-        self.drivescale = self.choose_size_button.get() /100
-        shift_x, shift_y = self.translate;
-
-        if not self.old_x and not self.old_y:
-            _x = event.x * self.drivescale - shift_x
-            _y = event.y * self.drivescale - shift_y 
-            
-            if self.snap:
-                _x = myround(_x, 10)
-                _y = myround(_y, 10)
-
-            self.old_x = _x
-            self.old_y = _y 
-            
-            self.points.append((_x, _y))
-
-            _x, _y = self.projection((_x, _y))   
-
-            self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
-            fill=None, width=2)
-
+        if self.inmotion:
+            self.setmove(event)
+            self.inmotion = False
         else:
-            _x = event.x * self.drivescale - shift_x
-            _y = event.y * self.drivescale - shift_y
-            
-            if self.snap:
-                _x = myround(_x, 10)
-                _y = myround(_y, 10)
+            self.drivescale = self.choose_size_button.get() /100
+            shift_x, shift_y = self.translate;
 
-            if self._distance(self.points[-1], (_x, _y)) >= 1:
-
-                self.points.append((_x, _y))
+            if not self.old_x and not self.old_y:
+                _x = event.x * self.drivescale - shift_x
+                _y = event.y * self.drivescale - shift_y 
                 
-                lx1, ly1 = self.projection( (self.old_x, self.old_y) )
-                lx2, ly2 = self.projection( (_x,_y) )
+                if self.snap:
+                    _x = myround(_x, 10)
+                    _y = myround(_y, 10)
 
-                self.lines.append(self.c.create_line(lx1, ly1, lx2, ly2,
-                                width=self.line_width, fill='red',
-                                capstyle=ROUND, smooth=TRUE, splinesteps=36))
-            
                 self.old_x = _x
                 self.old_y = _y 
-
-                # figuring out the propper command for this click
-                origin_x, origin_y = self.points[0]
-                iA = 90;
-                # handling this very point
-
-                point = (_x, _y)
-                cX = point[0]
-                cY = point[1] 
-
-                dX = point[0] - (self.points[-2][0])
-                dY = (self.points[-2][1]) - point[1]
-
-                dL = math.sqrt( dX**2 +dY**2 ) #* self.drivescale / 100
-
-                # adding txt to the plot for easyreference.
-                mX = ((point[0] + self.points[-2][0]) / 2)
-                mY = ((point[1] + self.points[-2][1]) / 2)
-
-                mX, mY = self.projection( (mX, mY) )
-
-                self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
-                            text=f"{int(dL)}cm"))
-
-                cX, cY = self.projection( (cX, cY) )
-
-                self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
-                fill=None, width=2) )
                 
-                dA = int(math.degrees(math.atan2(dY, dX)))
-                if len(self.commands) > 0:
-                    iA = self.commands[-1][3]
-                else:
-                    iA= 90
+                self.points.append((_x, _y))
 
-                A = dA - iA
+                _x, _y = self.projection((_x, _y))   
 
-                if A < -180: 
-                    A = 360 + A
-                elif A > 180:
-                    A = A - 360
+                self.origin = self.c.create_oval(_x-5, _y-5, _x+5, _y+5, outline='red',
+                fill=None, width=2)
 
-                # tracking theglobal angle od Dz3
-                self.globalAngleLast.append( self.globalAngle);
-                self.globalAngle += A
-                self.update()
+            else:
+                _x = event.x * self.drivescale - shift_x
+                _y = event.y * self.drivescale - shift_y
                 
+                if self.snap:
+                    _x = myround(_x, 10)
+                    _y = myround(_y, 10)
 
-                # adding thisline as 2 commands - 1-turn - 2 move
-                self.commands.append((0,A,0,dA))
-                print(self.commands[-1])
-                self.commands.append((dL,0,0,dA))
-                print(self.commands[-1])
+                if self._distance(self.points[-1], (_x, _y)) >= 1:
+
+                    self.points.append((_x, _y))
+                    
+                    lx1, ly1 = self.projection( (self.old_x, self.old_y) )
+                    lx2, ly2 = self.projection( (_x,_y) )
+
+                    self.lines.append(self.c.create_line(lx1, ly1, lx2, ly2,
+                                    width=self.line_width, fill='red',
+                                    capstyle=ROUND, smooth=TRUE, splinesteps=36))
+                
+                    self.old_x = _x
+                    self.old_y = _y 
+
+                    # figuring out the propper command for this click
+                    origin_x, origin_y = self.points[0]
+                    iA = 90;
+                    # handling this very point
+
+                    point = (_x, _y)
+                    cX = point[0]
+                    cY = point[1] 
+
+                    dX = point[0] - (self.points[-2][0])
+                    dY = (self.points[-2][1]) - point[1]
+
+                    dL = math.sqrt( dX**2 +dY**2 ) #* self.drivescale / 100
+
+                    # adding txt to the plot for easyreference.
+                    mX = ((point[0] + self.points[-2][0]) / 2)
+                    mY = ((point[1] + self.points[-2][1]) / 2)
+
+                    mX, mY = self.projection( (mX, mY) )
+
+                    self.txt.append(self.c.create_text(mX,mY, fill="black",font="20",
+                                text=f"{int(dL)}cm"))
+
+                    cX, cY = self.projection( (cX, cY) )
+
+                    self.joints.append( self.c.create_oval(cX-5, cY-5, cX+5, cY+5, outline='black',
+                    fill=None, width=2) )
+                    
+                    dA = int(math.degrees(math.atan2(dY, dX)))
+                    if len(self.commands) > 0:
+                        iA = self.commands[-1][3]
+                    else:
+                        iA= 90
+
+                    A = dA - iA
+
+                    if A < -180: 
+                        A = 360 + A
+                    elif A > 180:
+                        A = A - 360
+
+                    # tracking theglobal angle od Dz3
+                    self.globalAngleLast.append( self.globalAngle);
+                    self.globalAngle += A
+                    self.update()
+                    
+
+                    # adding thisline as 2 commands - 1-turn - 2 move
+                    self.commands.append((0,A,0,dA))
+                    print(self.commands[-1])
+                    self.commands.append((dL,0,0,dA))
+                    print(self.commands[-1])
     
     def sent_serial(self):
         # first sent the set of sequence commands
