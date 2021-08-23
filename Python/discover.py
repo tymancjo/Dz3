@@ -69,8 +69,18 @@ if the_device:
     if the_service:
         print(f"Found Vendor sercvice at {the_service}")
         # as we found what we were looking for we try to connect
-        loop.run_until_complete(BTconnect())
-        loop.run_until_complete(BTwrite('<1,0,720,500>'))
+        time.sleep(2)
+        trys = 0
+        while trys < 5:
+            try:
+                loop.run_until_complete(BTconnect())
+                break
+            except:
+                trys += 1
+                print("issue....")
+
+        
+        loop.run_until_complete(BTwrite('<1,0,30,500>'))
 
 
         print("Done...")
