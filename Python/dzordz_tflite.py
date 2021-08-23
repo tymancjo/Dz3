@@ -290,6 +290,10 @@ while True:
     persons = 0
     centers = []
     the_X = resW/2
+    delta = 0
+    prev_delta = 0
+    sum_delta = 0
+
     for i in range(len(scores)):
         if int(classes[i]) == 0:
         # if True:
@@ -319,15 +323,35 @@ while True:
         aver_x = centers[0]
     else:
         aver_x = 0
-    print(f"aver_x: {aver_x} ")
+
+    # print(f"aver_x: {aver_x} ")
+
+    prev_delta = delta
+
     delta = (the_X - aver_x) / resW
-    print(f"d_x: {delta} ")
-    # cv2.rectangle(frame, (aver_x-5, 30), (aver_x + 5, resH -30), (255, 0, 255), cv2.FILLED)
-    cv2.rectangle(frame, (10,10),(20,20),(200,0,200), cv2.FILLED)
-    if abs(delta) > 0.05:
-        loop.run_until_complete(BTwrite(f'<1,0,{int(180*delta)},{int(abs(delta)*800)}>'))
+    sum_delta += delta
+    diff_delta = prev_delta - delta
+
+    # print(f"d_x: {delta} ")
+    
+    # the PID part
+    P = 1
+    I = 0.01
+    D = 0.01
+
+    pid_out = P * delta + I * sum_delta + D * diff_delta
+
+    if abs(pid_out) > 0.05:
+        turn_amount = pid_out * 180
+        turn_speed = abs(pid_out) * 1000
+        loop.run_until_complete(BTwrite(f'<1,0,{int(turn_amount)},{int(turn_speed)}>'))
     else:
         loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
+
+    # if abs(delta) > 0.05:
+    #     loop.run_until_complete(BTwrite(f'<1,0,{int(180*delta)},{int(abs(delta)*800)}>'))
+    # else:
+    #     loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
 
 
 
