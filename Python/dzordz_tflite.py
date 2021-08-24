@@ -258,6 +258,12 @@ videostream = VideoStream(resolution=(imW,imH),framerate=30).start()
 time.sleep(1)
 
 #for frame1 in camera.capture_continuous(rawCapture, format="bgr",use_video_port=True):
+the_X = resW/2
+aver_x = 0
+delta = 0
+prev_delta = 0
+sum_delta = 0
+no_object_loops = 0
 while True:
 
     # Start timer (for calculating frame rate)
@@ -289,10 +295,6 @@ while True:
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     persons = 0
     centers = []
-    the_X = resW/2
-    delta = 0
-    prev_delta = 0
-    sum_delta = 0
 
     for i in range(len(scores)):
         if int(classes[i]) == 0:
@@ -322,7 +324,11 @@ while True:
     if len(centers):
         aver_x = centers[0]
     else:
-        aver_x = 0
+        if no_object_loops > 200:
+            aver_x = 0
+            no_object_loops = 0
+        else:
+            no_object_loops += 1
 
     # print(f"aver_x: {aver_x} ")
 
@@ -336,8 +342,8 @@ while True:
     
     # the PID part
     P = 1
-    I = 0.01
-    D = 0.01
+    I = 0.002
+    D = 0.1
 
     pid_out = P * delta + I * sum_delta + D * diff_delta
 
