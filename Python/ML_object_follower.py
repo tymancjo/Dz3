@@ -286,6 +286,9 @@ sum_delta = 0
 no_object_loops = 0
 
 face_mode = False
+face_timer = time.time()
+
+eye_x = 0
 
 # the PID part
 P = 1
@@ -391,13 +394,19 @@ while True:
         frame = create_blank(800, 480, (125,0,0))
 
         # the eyes:
-        eye_x0 = 150
-        eye_y0 = 100
-        eye_dx = 500
+        eye_x0 = 200
+        eye_y0 = 150
+        eye_dx = 400
+        wx = 20
+        wy = 20
+        if time.time() > face_timer + 1:
+            face_timer = time.time()
+            wy = 5
+            
 
-        eye_x = eye_x0 + int(delta * 800)
-        cv2.rectangle(frame,(eye_x - 20, eye_y0 - 20), (eye_x + 20, eye_y0 + 20), (255,255,255), -1)
-        cv2.rectangle(frame,(eye_x + eye_dx - 20, eye_y0 - 20), (eye_x + eye_dx + 20, eye_y0 + 20), (255,255,255), -1)
+        eye_x = int(0.5 * eye_x + 0.5 * (eye_x0 + delta * 800))
+        cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), (255,255,255), -1)
+        cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), (255,255,255), -1)
 
         pass
     # Draw framerate in corner of frame
