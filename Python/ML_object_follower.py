@@ -204,7 +204,7 @@ resW, resH = args.resolution.split('x')
 resW = int (resW) / 2
 resH = int (resH) /2
 imW, imH = int(resW), int(resH)
-use_TPU =   args.edgetpu
+use_TPU = not args.edgetpu
 
 
 # Import TensorFlow libraries
@@ -282,6 +282,8 @@ delta = 0
 prev_delta = 0
 sum_delta = 0
 no_object_loops = 0
+
+face_mode = False
 
 # the PID part
 P = 1
@@ -384,8 +386,11 @@ while True:
     frame_rate_calc= 1/time1
 
     # Press 'q' to quit
-    if cv2.waitKey(1) == ord('q'):
+    key_pressed = cv2.waitKey(1)
+    if key_pressed == ord('q'):
         break
+    elif key_pressed == ord('f'):
+        face_mode = not face_mode
 
 # Clean up
 cv2.destroyAllWindows()
