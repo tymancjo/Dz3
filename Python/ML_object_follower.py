@@ -425,6 +425,7 @@ while True:
                 dy *= -1
 
             t_y += dy 
+            t_y = int( t_y )
 
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
