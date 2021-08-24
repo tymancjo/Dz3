@@ -415,14 +415,16 @@ while True:
         mth_y0 = 350
         mth_h = 40
         mth_x0 = int((800 - 8 * (mth_h + 2))/2)
+
+        t_y = mth_y0
         for i in range(8):
             t_x = i * (mth_h + 2) + mth_x0
 
-            dy = happy * mth_h * 0.5
+            dy = happy * mth_h * 0.2
             if i > 3:
                 dy *= -1
 
-            t_y = int(mth_y0 + i * dy)
+            t_y += dy 
 
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
