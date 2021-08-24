@@ -366,10 +366,12 @@ while True:
 
     if len(centers):
         aver_x = sum(centers) / len(centers)
+        happy = 0.6 * happy + 0.4 * persons
     else:
         if no_object_loops > 200:
             aver_x = 0
             no_object_loops = 0
+            happy = -1
         else:
             no_object_loops += 1
 
@@ -392,7 +394,6 @@ while True:
             loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
 
     if face_mode:
-        happy = persons
         # frame = create_blank(resW, resH, (125,0,0))
         frame = create_blank(800, 480, (125,0,0))
 
@@ -414,15 +415,17 @@ while True:
         # mouth
         mth_y0 = 350
         mth_h = 40
-        mth_x0 = int((800 - 8 * (mth_h + 2))/2)
+        mth_x0 = int((800 - 8 * (mth_h + 0))/2)
 
         t_y = mth_y0
         for i in range(8):
-            t_x = i * (mth_h + 2) + mth_x0
+            t_x = i * (mth_h + 0) + mth_x0
 
             dy = happy * mth_h * 0.2
-            if i > 3:
+            if i > 4:
                 dy *= -1
+            if i == 3:
+                dy = 0
 
             t_y += dy 
             t_y = int( t_y )
@@ -430,8 +433,9 @@ while True:
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
         pass
-    # Draw framerate in corner of frame
-    cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
+    else:
+        # Draw framerate in corner of frame
+        cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
