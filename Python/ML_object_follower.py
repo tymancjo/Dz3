@@ -409,8 +409,9 @@ while True:
         cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), (255,255,255), -1)
 
         # mouth
-        mth_y0 = 250
-        cv2.rectangle(frame,(eye_x0, mth_y0), (eye_x0 + eye_dx, mth_y0), (255,255,255), -1)
+        mth_y0 = 350
+        mth_h = 60
+        cv2.rectangle(frame,(eye_x0, mth_y0), (eye_x0 + eye_dx, mth_y0 + mth_h), (255,255,255), -1)
 
         pass
     # Draw framerate in corner of frame
