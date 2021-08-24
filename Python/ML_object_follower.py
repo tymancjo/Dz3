@@ -23,6 +23,7 @@ import sys
 import time
 from threading import Thread
 import importlib.util
+import random
 
 import asyncio
 from bleak import BleakClient, BleakScanner 
@@ -395,14 +396,14 @@ while True:
 
         # the eyes:
         eye_x0 = 200
-        eye_y0 = 150
+        eye_y0 = 170
         eye_dx = 400
-        wx = 20
-        wy = 20
-        if time.time() > face_timer + 1:
+        wx = 30
+        wy = 30
+        if time.time() > face_timer + random.randint(1,3):
             face_timer = time.time()
             wy = 5
-            
+
 
         eye_x = int(0.5 * eye_x + 0.5 * (eye_x0 + delta * 800))
         cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), (255,255,255), -1)
