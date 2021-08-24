@@ -201,8 +201,8 @@ GRAPH_NAME = args.graph
 LABELMAP_NAME = args.labels
 min_conf_threshold = float(args.threshold)
 resW, resH = args.resolution.split('x')
-resW = int(resW / 2)
-resH = int(resH / 2)
+resW = int(int(resW) / 2)
+resH = int(int(resH) / 2)
 imW, imH = int(resW), int(resH)
 use_TPU = not args.edgetpu
 
