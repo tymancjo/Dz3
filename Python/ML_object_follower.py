@@ -400,7 +400,7 @@ while True:
 
         pass
     # Draw framerate in corner of frame
-    cv2.putText(frame,'FPS: {0:.2f}, persons: {1}'.format(frame_rate_calc, persons),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,255,0),2,cv2.LINE_AA)
+    cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
