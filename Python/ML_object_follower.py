@@ -386,7 +386,8 @@ while True:
             loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
 
     if face_mode:
-        frame = create_blank(resW, resH, (125,0,0))
+        # frame = create_blank(resW, resH, (125,0,0))
+        frame = create_blank(800, 480, (125,0,0))
         pass
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}, persons: {1}'.format(frame_rate_calc, persons),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
