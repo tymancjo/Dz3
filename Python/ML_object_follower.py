@@ -404,10 +404,13 @@ while True:
             face_timer = time.time()
             wy = 5
 
-
-        eye_x = int(0.5 * eye_x + 0.5 * (eye_x0 + delta * 800))
+        eye_x = min(800 - 2 * wx, int(0.5 * eye_x + 0.5 * (eye_x0 + delta * 800)))
         cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), (255,255,255), -1)
         cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), (255,255,255), -1)
+
+        # mouth
+        mth_y0 = 250
+        cv2.rectangle(frame,(eye_x0, mth_y0), (eye_x0 + eye_dx, mth_y0), (255,255,255), -1)
 
         pass
     # Draw framerate in corner of frame
