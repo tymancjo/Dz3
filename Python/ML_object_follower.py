@@ -290,6 +290,7 @@ face_mode = False
 face_timer = time.time()
 
 eye_x = 0
+happy = 0
 
 # the PID part
 P = 1
@@ -412,10 +413,15 @@ while True:
         # mouth
         mth_y0 = 350
         mth_h = 40
-        mth_x0 = 800 - 8 * (mth_h + 2)
+        mth_x0 = int((800 - 8 * (mth_h + 2))/2)
         for i in range(8):
-            t_x = i * mth_h + mth_x0
-            t_y = mth_y0
+            t_x = i * (mth_h + 2) + mth_x0
+
+            dy = happy * mth_h * 0.5
+            if i > 3:
+                dy *= -1
+
+            t_y = mth_y0 + i * dy
 
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
