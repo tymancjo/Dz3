@@ -388,9 +388,19 @@ while True:
     if face_mode:
         # frame = create_blank(resW, resH, (125,0,0))
         frame = create_blank(800, 480, (125,0,0))
+
+        # the eyes:
+        eye_x0 = 150
+        eye_y0 = 100
+        eye_dx = 500
+
+        eye_x = eye_x0 + int(delta * 800)
+        cv2.rectangle(frame,(eye_x - 20, eye_y0 - 20), (eye_x + 20, eye_y0 + 20), (255,255,255), -1)
+        cv2.rectangle(frame,(eye_x + eye_dx - 20, eye_y0 - 20), (eye_x + eye_dx + 20, eye_y0 + 20), (255,255,255), -1)
+
         pass
     # Draw framerate in corner of frame
-    cv2.putText(frame,'FPS: {0:.2f}, persons: {1}'.format(frame_rate_calc, persons),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
+    cv2.putText(frame,'FPS: {0:.2f}, persons: {1}'.format(frame_rate_calc, persons),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.3,(255,255,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
