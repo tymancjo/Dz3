@@ -410,7 +410,7 @@ while True:
             face_timer = time.time()
             wy = 5
 
-        eye_x = min(800 - 2 * wx - eye_dx, int(0.5 * eye_x + 0.5 * (eye_x0 + delta * 800)))
+        eye_x = min(800 - 2 * wx - eye_dx, int(0.8 * eye_x + 0.2 * (eye_x0 + delta * 800)))
         eye_x = max(eye_x, 0)
         cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), (255,255,255), -1)
         cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), (255,255,255), -1)
