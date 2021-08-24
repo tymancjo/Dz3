@@ -297,6 +297,7 @@ def create_blank(width, height, color=(0, 0, 0)):
     image = np.zeros((height, width, 3), np.uint8)
     # Fill image with color
     image[:] = color
+    return image
 
 
 while True:
