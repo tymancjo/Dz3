@@ -374,6 +374,9 @@ while True:
             happy = -1
         else:
             no_object_loops += 1
+            happy = 0.8 * happy - 0.2
+            if happy < 0:
+                happy = 0
 
     prev_delta = delta
 
@@ -424,7 +427,7 @@ while True:
             dy = happy * mth_h * 0.2
             if i > 4:
                 dy *= -1
-            if i == 3:
+            if i == 4:
                 dy = 0
 
             t_y += dy 
