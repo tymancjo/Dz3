@@ -392,6 +392,7 @@ while True:
             loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
 
     if face_mode:
+        happy = persons
         # frame = create_blank(resW, resH, (125,0,0))
         frame = create_blank(800, 480, (125,0,0))
 
@@ -421,7 +422,7 @@ while True:
             if i > 3:
                 dy *= -1
 
-            t_y = mth_y0 + i * dy
+            t_y = int(mth_y0 + i * dy)
 
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
