@@ -274,6 +274,8 @@ freq = cv2.getTickFrequency()
 # Initialize video stream
 videostream = VideoStream(resolution=(imW,imH),framerate=30).start()
 time.sleep(1)
+cv2.namedWindow('the_screen', cv2.WINDOW_FREERATIO)
+cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 # some initial values here
 the_X = resW/2
@@ -289,6 +291,13 @@ face_mode = False
 P = 1
 I = 0.002
 D = 0.1
+
+def create_blank(width, height, color=(0, 0, 0)):
+    """Create new image(numpy array) filled with certain color in BGR"""
+    image = np.zeros((height, width, 3), np.uint8)
+    # Fill image with color
+    image[:] = color
+
 
 while True:
 
@@ -328,24 +337,25 @@ while True:
             if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
                 persons += 1
 
-                # Get bounding box coordinates and draw box
-                # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
-                ymin = int(max(1,(boxes[i][0] * imH)))
-                xmin = int(max(1,(boxes[i][1] * imW)))
-                ymax = int(min(imH,(boxes[i][2] * imH)))
-                xmax = int(min(imW,(boxes[i][3] * imW)))
+                if not face_mode:
+                    # Get bounding box coordinates and draw box
+                    # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
+                    ymin = int(max(1,(boxes[i][0] * imH)))
+                    xmin = int(max(1,(boxes[i][1] * imW)))
+                    ymax = int(min(imH,(boxes[i][2] * imH)))
+                    xmax = int(min(imW,(boxes[i][3] * imW)))
+                    
+                    cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
+                    
+                    centers.append(xmin+(xmax-xmin)/2)
+                    # Draw label
+                    object_name = labels[int(classes[i])] # Look up object name from "labels" array using class index
                 
-                cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
-                
-                centers.append(xmin+(xmax-xmin)/2)
-                # Draw label
-                object_name = labels[int(classes[i])] # Look up object name from "labels" array using class index
-            
-                label = '%s: %s: %d%%' % (object_name, classes[i], int(scores[i]*100)) # Example: 'person: 72%'
-                labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
-                label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
-                cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
-                cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
+                    label = '%s: %s: %d%%' % (object_name, classes[i], int(scores[i]*100)) # Example: 'person: 72%'
+                    labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
+                    label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
+                    cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
+                    cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
 
     if len(centers):
         aver_x = sum(centers) / len(centers)
@@ -374,11 +384,14 @@ while True:
         else:
             loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
 
+    if face_mode:
+        frame = create_blank(resW, resH, (125,0,0))
+        pass
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}, persons: {1}'.format(frame_rate_calc, persons),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
-    cv2.imshow('Object detector', frame)
+    cv2.imshow('the_screen', frame)
 
     # Calculate framerate
     t2 = cv2.getTickCount()
