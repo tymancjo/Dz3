@@ -375,8 +375,8 @@ while True:
         else:
             no_object_loops += 1
             happy = 0.8 * happy - 0.2
-            if happy < 0:
-                happy = 0
+            if happy < -1:
+                happy = -1
 
     prev_delta = delta
 
@@ -416,7 +416,7 @@ while True:
         cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), (255,255,255), -1)
 
         # mouth
-        mth_y0 = 350
+        mth_y0 = 320
         mth_h = 40
         mth_x0 = int((800 - 8 * (mth_h + 0))/2)
 
