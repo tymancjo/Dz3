@@ -284,6 +284,11 @@ aver_x = 0
 delta = 0
 prev_delta = 0
 sum_delta = 0
+
+area_delta = 0
+area_prev_delta = 0
+area_sum_delta = 0
+
 no_object_loops = 0
 
 face_mode = False
@@ -294,9 +299,15 @@ eye_x = 0
 happy = 0
 
 # the PID part
+# PID for the rotation
 P = 1
 I = 0.002
 D = 0.1
+
+# PID for the move
+mP = 1
+mI = 0.001
+mD = 0.02
 
 def create_blank(width, height, color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in BGR"""
@@ -337,6 +348,7 @@ while True:
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     persons = 0
     centers = []
+    areas = []
 
     for i in range(len(scores)):
         if int(classes[i]) == 0:
@@ -354,6 +366,7 @@ while True:
                 cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
                 
                 centers.append(xmin+(xmax-xmin)/2)
+                areas.append((ymax-ymin)*(xmax - xmin)/(imW*imH))
 
                 if not face_mode:
                     # Draw label
@@ -366,9 +379,12 @@ while True:
                     cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
 
     if len(centers):
-        aver_x = sum(centers) / len(centers)
+        # aver_x = sum(centers) / len(centers)
+        aver_x = centers[0]
+        dist_area = areas[0]
         happy = 0.6 * happy + 0.4 * persons
     else:
+        dist_area = 0
         if no_object_loops > 200:
             aver_x = 0
             no_object_loops = 0
@@ -379,24 +395,40 @@ while True:
             if happy < -1:
                 happy = -1
 
+    # Turning analysis
     prev_delta = delta
-
     delta = (the_X - aver_x) / resW
     sum_delta += delta
     diff_delta = prev_delta - delta
 
+    # Moving analysis
+    area_prev_delta = area_delta
+    area_delta = 0.3 - dist_area
+    area_sum_delta += area_delta
+    area_diff_delta = area_prev_delta - area_delta
 
     pid_out = P * delta + I * sum_delta + D * diff_delta
+    area_pid_out = mP * area_delta + mI * area_sum_delta + mD * area_diff_delta
+
+    if abs(pid_out) > 0.05:
+        turn_amount = int(pid_out * 180)
+        turn_speed = int(abs(pid_out) * 1000)
+    else:
+        turn_amount = 0
+        turn_speed = 200
+
+    if abs(area_pid_out) > 0.05:
+        move_amount = 100 * area_pid_out
+        move_amount *= int(move_mode)
+        move_amount = int(move_amount)
+    else:
+        move_amount = 0
 
     if client.is_connected:
         # if we are connected to the robot we send commands.
-        if abs(pid_out) > 0.05:
-            turn_amount = pid_out * 180
-            turn_speed = abs(pid_out) * 1000
-            loop.run_until_complete(BTwrite(f'<1,0,{int(turn_amount)},{int(turn_speed)}>'))
-        else:
-            loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
+        loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{turn_speed}>'))
 
+    # The face look
     if face_mode:
         # frame = create_blank(resW, resH, (125,0,0))
 
@@ -468,10 +500,12 @@ while True:
 
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
+        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
         pass
     else:
         # Draw framerate in corner of frame
-        cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
+        # cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
+        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
@@ -484,6 +518,7 @@ while True:
     # Press 'q' to quit
     key_pressed = cv2.waitKey(1)
     if key_pressed == ord('q'):
+        loop.run_until_complete(BTwrite(f'<0,0,0,500>'))
         break
 
     elif key_pressed == ord('f'):
