@@ -24,6 +24,7 @@ import time
 from threading import Thread
 import importlib.util
 import random
+import math
 
 import asyncio
 from bleak import BleakClient, BleakScanner 
@@ -307,7 +308,7 @@ D = 0.1
 # PID for the move
 mP = 1
 mI = 0.001
-mD = 0.0001
+mD = 0.01
 
 prev_turn = 0
 prev_area = 0
@@ -399,11 +400,11 @@ while True:
                 happy = -1
 
     # some tepmoral filtering
-    prev_turn = aver_x
     aver_x = 0.7 * prev_turn + 0.3 * aver_x
+    prev_turn = aver_x
 
+    dist_area = 0.9 * prev_area + 0.1 * dist_area
     prev_area = dist_area
-    dist_area = 0.7 * prev_area + 0.3 * dist_area
 
     # Turning analysis
     prev_delta = delta
@@ -413,12 +414,15 @@ while True:
 
     # Moving analysis
     area_prev_delta = area_delta
-    area_delta = 0.3 - dist_area
+    area_delta = 0.4 - dist_area
     area_sum_delta += area_delta
     area_diff_delta = area_prev_delta - area_delta
 
     pid_out = P * delta + I * sum_delta + D * diff_delta
     area_pid_out = mP * area_delta + mI * area_sum_delta + mD * area_diff_delta
+
+    pid_out = round(pid_out, 3)
+    area_pid_out = round(area_pid_out, 3)
 
     if abs(pid_out) > 0.05:
         turn_amount = int(pid_out * 180)
@@ -427,7 +431,7 @@ while True:
         turn_amount = 0
         turn_speed = 200
 
-    if abs(area_pid_out) > 0.05:
+    if abs(area_pid_out) > 0.08:
         move_amount = 100 * area_pid_out
         move_amount *= int(move_mode)
         move_amount = int(move_amount)
@@ -436,7 +440,8 @@ while True:
         move_amount = 0
         move_speed = 0
 
-    final_speed = int((move_speed + turn_speed) / 2)
+    # final_speed = int((move_speed + turn_speed) / 2)
+    final_speed = max(move_speed, turn_speed)
 
     if client.is_connected:
         # if we are connected to the robot we send commands.
@@ -514,12 +519,12 @@ while True:
 
             cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
 
-        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
+        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
         pass
     else:
         # Draw framerate in corner of frame
         # cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
-        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
+        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
