@@ -276,7 +276,7 @@ freq = cv2.getTickFrequency()
 videostream = VideoStream(resolution=(imW,imH),framerate=30).start()
 time.sleep(1)
 cv2.namedWindow('the_screen', cv2.WINDOW_FREERATIO)
-cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+# cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 # some initial values here
 the_X = resW/2
@@ -287,6 +287,7 @@ sum_delta = 0
 no_object_loops = 0
 
 face_mode = False
+move_mode = False
 face_timer = time.time()
 
 eye_x = 0
@@ -398,7 +399,6 @@ while True:
 
     if face_mode:
         # frame = create_blank(resW, resH, (125,0,0))
-        frame = create_blank(800, 480, (125,0,0))
 
         # the eyes:
         eye_x0 = 200
@@ -406,28 +406,61 @@ while True:
         eye_dx = 400
         wx = 30
         wy = 30
+        min_x = eye_x0 - 85
+        max_x = eye_x0 + 85
+
+        eye_x = min(max_x, int(0.8 * eye_x + 0.2 * (eye_x0 + delta * 400)))
+        eye_x = max(eye_x, min_x)
+        
+        # mouth
+        mth_y0 = 320
+        mth_h = 40
+        mth_n = 8
+
+        face_color = (125,0,0)
+        eyes_color = (255,255,255)
+        mouth_color = (255,255,255)
+
+        if move_mode: 
+            face_color = (3,255,156)
+            eyes_color = (2,2,2)
+            mouth_color = (2,2,2)
+            mth_h = 20
+            mth_n = 20
+            mth_y0 = 380
+
         if time.time() > face_timer + random.randint(1,3):
             face_timer = time.time()
             wy = 5
 
-        eye_x = min(800 - 2 * wx - eye_dx, int(0.8 * eye_x + 0.2 * (eye_x0 + delta * 800)))
-        eye_x = max(eye_x, 0)
-        cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), (255,255,255), -1)
-        cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), (255,255,255), -1)
+        frame = create_blank(800, 480, face_color)
+        
+        if not move_mode:
+            cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), eyes_color, -1)
+            cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), mouth_color, -1)
+        else:
+            cv2.rectangle(frame, (0, eye_y0 - 50),(800, eye_y0+50),
+                            (125,125,125), -1 )
+            cv2.circle(frame, (eye_x0, eye_y0), 100, (255,255,255), -1)
+            cv2.circle(frame, (eye_x0 + eye_dx, eye_y0), 100, (255,255,255), -1)
+            cv2.ellipse(frame, (eye_x, eye_y0+5), (wx, wy),
+                        0, 0, 360, eyes_color, -1)
+            cv2.ellipse(frame, (eye_x + eye_dx, eye_y0+5), (wx, wy),
+                        0, 0, 360, eyes_color, -1)
 
-        # mouth
-        mth_y0 = 320
-        mth_h = 40
-        mth_x0 = int((800 - 8 * (mth_h + 0))/2)
+            cv2.circle(frame, (eye_x0, eye_y0), 105, (155,155,155), 20)
+            cv2.circle(frame, (eye_x0 + eye_dx, eye_y0), 105, (155,155,155), 20)
 
+
+        mth_x0 = int((800 - mth_n * (mth_h + 0))/2)
         t_y = mth_y0
-        for i in range(8):
+        for i in range(mth_n):
             t_x = i * (mth_h + 0) + mth_x0
 
             dy = happy * mth_h * 0.2
-            if i > 4:
+            if i > mth_n // 2:
                 dy *= -1
-            if i == 4:
+            if i == mth_n // 2:
                 dy = 0
 
             t_y += dy 
@@ -452,12 +485,16 @@ while True:
     key_pressed = cv2.waitKey(1)
     if key_pressed == ord('q'):
         break
+
     elif key_pressed == ord('f'):
         face_mode = not face_mode
+
+    elif key_pressed == ord('m'):
+        move_mode = not move_mode
 
 # Clean up
 cv2.destroyAllWindows()
 videostream.stop()
-print("Done...")
 # and we disconnect
 loop.run_until_complete(BTdisconnect())
+print("Done...")

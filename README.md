@@ -1,5 +1,5 @@
 # Dz3
-## The Dżordż version 3
+## The Dżordż version 3.1
 
 This is an Adruino based Robot experiment. It works with python PC path maker and work little bit like CNC
 
