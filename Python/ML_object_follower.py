@@ -303,7 +303,7 @@ happy = 0
 # PID for the rotation
 P = 1
 I = 0.002
-D = 0.1
+D = 0.015
 
 # PID for the move
 mP = 1
@@ -384,7 +384,7 @@ while True:
 
     if len(centers):
         aver_x = sum(centers) / len(centers)
-        dist_area = sum(areas) / len(areas)
+        dist_area = max(areas) 
         # aver_x = centers[0]
         # dist_area = areas[0]
         happy = 0.6 * happy + 0.4 * persons
@@ -415,7 +415,7 @@ while True:
 
     # Moving analysis
     area_prev_delta = area_delta
-    area_delta = 0.4 - dist_area
+    area_delta = 0.3 - dist_area
     area_sum_delta += area_delta
     area_diff_delta = area_prev_delta - area_delta
 
@@ -426,7 +426,7 @@ while True:
     area_pid_out = round(area_pid_out, 3)
 
     # addingo some hysteresis behaviour
-    if abs(pid_out) < 0.03:
+    if abs(pid_out) < 0.05:
         pid_out = 0
 
     turn_amount = int(pid_out * 180)
