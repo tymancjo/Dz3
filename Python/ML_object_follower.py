@@ -307,7 +307,10 @@ D = 0.1
 # PID for the move
 mP = 1
 mI = 0.001
-mD = 0.02
+mD = 0.0001
+
+prev_turn = 0
+prev_area = 0
 
 def create_blank(width, height, color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in BGR"""
@@ -395,6 +398,13 @@ while True:
             if happy < -1:
                 happy = -1
 
+    # some tepmoral filtering
+    prev_turn = aver_x
+    aver_x = 0.7 * prev_turn + 0.3 * aver_x
+
+    prev_area = dist_area
+    dist_area = 0.7 * prev_area + 0.3 * dist_area
+
     # Turning analysis
     prev_delta = delta
     delta = (the_X - aver_x) / resW
@@ -412,7 +422,7 @@ while True:
 
     if abs(pid_out) > 0.05:
         turn_amount = int(pid_out * 180)
-        turn_speed = int(abs(pid_out) * 1000)
+        turn_speed = (abs(pid_out) * 1000)
     else:
         turn_amount = 0
         turn_speed = 200
@@ -421,12 +431,16 @@ while True:
         move_amount = 100 * area_pid_out
         move_amount *= int(move_mode)
         move_amount = int(move_amount)
+        move_speed = (1000 * abs(area_pid_out))
     else:
         move_amount = 0
+        move_speed = 0
+
+    final_speed = int((move_speed + turn_speed) / 2)
 
     if client.is_connected:
         # if we are connected to the robot we send commands.
-        loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{turn_speed}>'))
+        loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
 
     # The face look
     if face_mode:
