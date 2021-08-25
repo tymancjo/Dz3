@@ -425,7 +425,8 @@ while True:
     pid_out = round(pid_out, 3)
     area_pid_out = round(area_pid_out, 3)
 
-    if abs(pid_out) < 0.05:
+    # addingo some hysteresis behaviour
+    if abs(pid_out) < 0.03:
         pid_out = 0
 
     turn_amount = int(pid_out * 180)
