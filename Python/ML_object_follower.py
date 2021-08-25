@@ -383,9 +383,10 @@ while True:
                     cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
 
     if len(centers):
-        # aver_x = sum(centers) / len(centers)
-        aver_x = centers[0]
-        dist_area = areas[0]
+        aver_x = sum(centers) / len(centers)
+        dist_area = sum(areas) / len(areas)
+        # aver_x = centers[0]
+        # dist_area = areas[0]
         happy = 0.6 * happy + 0.4 * persons
     else:
         dist_area = 0
@@ -424,21 +425,19 @@ while True:
     pid_out = round(pid_out, 3)
     area_pid_out = round(area_pid_out, 3)
 
-    if abs(pid_out) > 0.05:
-        turn_amount = int(pid_out * 180)
-        turn_speed = (abs(pid_out) * 1000)
-    else:
-        turn_amount = 0
-        turn_speed = 200
+    if abs(pid_out) < 0.05:
+        pid_out = 0
 
-    if abs(area_pid_out) > 0.08:
-        move_amount = 100 * area_pid_out
-        move_amount *= int(move_mode)
-        move_amount = int(move_amount)
-        move_speed = (1000 * abs(area_pid_out))
-    else:
-        move_amount = 0
-        move_speed = 0
+    turn_amount = int(pid_out * 180)
+    turn_speed = (abs(pid_out) * 1000)
+
+    if abs(area_pid_out) < 0.08:
+        area_pid_out = 0
+
+    move_amount = 100 * area_pid_out
+    move_amount *= int(move_mode)
+    move_amount = int(move_amount)
+    move_speed = (1000 * abs(area_pid_out))
 
     # final_speed = int((move_speed + turn_speed) / 2)
     final_speed = max(move_speed, turn_speed)
