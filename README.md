@@ -64,10 +64,7 @@ where:
 
 ## The python app
 
-The python app - **pypath.py** allows to draw path and ten convert it to the set of commands that are sent via comm port to the Dz3 as sequence steps. To be able to communicate to the Dz3 Arduino hardware control part it utilise the **python** **serial** library.
-Active connection to the Dz3 Arduino uC via serial is needed. It can be executed by the USB cable, or Bluetooth module. The details of used connection need to be definedin the **connect** procedure of the **pypath.py** file. 
-
-In the source case the ble-serial library was used in linux to create the virtual serial port via BT BLE,connecting it to the BT HC-06 module of Dz3. *I never tested bluetooth connections in Windows or MacOS*  
+The python app - **pypath.py** allows to draw path and ten convert it to the set of commands that are sent via comm port to the Dz3 as sequence steps. To be able to communicate to the Dz3 Arduino hardware control part it utilise the **python** **blake** library. This library connects to the robot BLE module diretcly. And this should work on all OS types - everwhere the 
 
 The usage is pretty simple. It's a single window where a path made of straight lines and arcs can be sketch.
 
@@ -91,4 +88,7 @@ On the canvas the operations are based on mouse actions:
 
 Adding the turn by arc is based on a angle and turn arc radius which can be set by the two sliders on the right. Mouse drag or mouse wheel allows to adjust those sliders.
 The arc is added based on the last point of the path. If there are no points (not even he one click) the arc can't be added.     
+
+## Visual based controls
+The python app ML uses hte same connectiovity to the robot, but the rest is about computer vision and picture based controls. 
 
