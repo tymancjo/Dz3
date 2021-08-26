@@ -114,7 +114,15 @@ if the_device:
     # If we have the device we can follow to connect
 
     print(f"there is Mariola at {the_device}")
-    loop.run_until_complete(print_services(the_device))
+    trys = 0
+    while trys < 5:
+        try:
+            loop.run_until_complete(print_services(the_device))
+            break
+        except:
+            trys += 1
+            print("Issue...")
+
     if the_service:
         print(f"Found Vendor sercvice at {the_service}")
         # as we found what we were looking for we try to connect
@@ -291,6 +299,7 @@ area_prev_delta = 0
 area_sum_delta = 0
 
 no_object_loops = 0
+move_time = time.time()
 
 face_mode = False
 move_mode = False
@@ -301,12 +310,18 @@ happy = 0
 
 # the PID part
 # PID for the rotation
-P = 1
-I = 0.002
-D = 0.015
+# P = 1
+# I = 0.000
+# D = 0.015
+P = 0.1
+I = 0.001
+D = 0.03
 
 # PID for the move
-mP = 1
+# mP = 1
+# mI = 0.001
+# mD = 0.01
+mP = 0.5
 mI = 0.001
 mD = 0.01
 
@@ -376,7 +391,7 @@ while True:
                     # Draw label
                     object_name = labels[int(classes[i])] # Look up object name from "labels" array using class index
                 
-                    label = '%s: %s: %d%%' % (object_name, classes[i], int(scores[i]*100)) # Example: 'person: 72%'
+                    label = '%s: %s: %d%%: %d%%' % (object_name, classes[i], int(scores[i]*100), 100*areas[-1]) # Example: 'person: 72%'
                     labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
                     label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
                     cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
@@ -410,12 +425,15 @@ while True:
     # Turning analysis
     prev_delta = delta
     delta = (the_X - aver_x) / resW
+    # deth zone by delta
+    if abs(delta) < 0.02: delta = 0
     sum_delta += delta
     diff_delta = prev_delta - delta
 
     # Moving analysis
     area_prev_delta = area_delta
-    area_delta = 0.3 - dist_area
+    area_delta = 0.45 - dist_area
+    if abs(area_delta) < 0.05: area_delta = 0
     area_sum_delta += area_delta
     area_diff_delta = area_prev_delta - area_delta
 
@@ -426,26 +444,40 @@ while True:
     area_pid_out = round(area_pid_out, 3)
 
     # addingo some hysteresis behaviour
-    if abs(pid_out) < 0.05:
-        pid_out = 0
+    # if abs(pid_out) < 0.05:
+    #     pid_out = 0
 
     turn_amount = int(pid_out * 180)
-    turn_speed = (abs(pid_out) * 1000)
+    turn_speed = (abs(pid_out) * 10000)
 
-    if abs(area_pid_out) < 0.08:
-        area_pid_out = 0
+    # if abs(area_pid_out) < 0.08:
+    #     area_pid_out = 0
 
     move_amount = 100 * area_pid_out
     move_amount *= int(move_mode)
     move_amount = int(move_amount)
-    move_speed = (1000 * abs(area_pid_out))
+
+    # more emphasis on turns than moves
+    if turn_amount > 5:
+        move_amount = move_amount // 10
+
+    move_speed = (2000 * abs(area_pid_out))
 
     # final_speed = int((move_speed + turn_speed) / 2)
     final_speed = max(move_speed, turn_speed)
 
-    if client.is_connected:
+    now = time.time()
+    # making the calls sended max 5 time per second
+    if client.is_connected and now > move_time + 0.02:
+        move_time = now
         # if we are connected to the robot we send commands.
-        loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
+        trys = 0
+        while trys < 3:
+            try:
+                loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
+                break
+            except:
+                trys += 1
 
     # The face look
     if face_mode:
@@ -473,7 +505,7 @@ while True:
         mouth_color = (255,255,255)
 
         if move_mode: 
-            face_color = (3,255,156)
+            face_color = (3,200,200)
             eyes_color = (2,2,2)
             mouth_color = (2,2,2)
             mth_h = 20
@@ -525,6 +557,8 @@ while True:
         # Draw framerate in corner of frame
         # cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
         cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,f'P: {P:.4f}, I: {I:.4f} D: {D:.4f}',(30,70),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,f'P: {mP:.4f}, I: {mI:.4f} D: {mD:.4f}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
@@ -546,6 +580,18 @@ while True:
     elif key_pressed == ord('m'):
         move_mode = not move_mode
 
+    elif key_pressed == ord('1'):
+        mP += 0.05
+    elif key_pressed == ord('2'):
+        mP -= 0.05
+    elif key_pressed == ord('3'):
+        mI += 0.0001
+    elif key_pressed == ord('4'):
+        mI -= 0.0001
+    elif key_pressed == ord('5'):
+        mD += 0.0005
+    elif key_pressed == ord('6'):
+        mD -= 0.0005
 # Clean up
 cv2.destroyAllWindows()
 videostream.stop()
