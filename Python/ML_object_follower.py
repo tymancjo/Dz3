@@ -313,20 +313,23 @@ happy = 0
 # P = 1
 # I = 0.000
 # D = 0.015
-P = 0.1
-I = 0.001
+P = 0.15
+I = 0.0010
 D = 0.03
 
 # PID for the move
 # mP = 1
 # mI = 0.001
 # mD = 0.01
-mP = 0.5
-mI = 0.001
+mP = 0.7
+mI = 0.0001
 mD = 0.01
 
 prev_turn = 0
 prev_area = 0
+target_class = 0
+target_area = 0.4
+reverse = False
 
 def create_blank(width, height, color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in BGR"""
@@ -370,7 +373,7 @@ while True:
     areas = []
 
     for i in range(len(scores)):
-        if int(classes[i]) == 0:
+        if int(classes[i]) == target_class:
         # if True:
             if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
                 persons += 1
@@ -404,11 +407,17 @@ while True:
         # dist_area = areas[0]
         happy = 0.6 * happy + 0.4 * persons
     else:
-        dist_area = 0
-        if no_object_loops > 200:
-            aver_x = 0
+        dist_area = target_area
+        if no_object_loops > 100:
+            if reverse:
+                aver_x = 0
+            else:
+                aver_x = imW
+                prev_turn = imW
+
             no_object_loops = 0
             happy = -1
+            reverse = not reverse
         else:
             no_object_loops += 1
             happy = 0.8 * happy - 0.2
@@ -432,7 +441,7 @@ while True:
 
     # Moving analysis
     area_prev_delta = area_delta
-    area_delta = 0.45 - dist_area
+    area_delta = target_area - dist_area
     if abs(area_delta) < 0.05: area_delta = 0
     area_sum_delta += area_delta
     area_diff_delta = area_prev_delta - area_delta
@@ -457,14 +466,17 @@ while True:
     move_amount *= int(move_mode)
     move_amount = int(move_amount)
 
-    # more emphasis on turns than moves
-    if turn_amount > 5:
-        move_amount = move_amount // 10
-
     move_speed = (2000 * abs(area_pid_out))
 
+    # more emphasis on turns than moves
+    if turn_amount > 1:
+        # move_amount = move_amount // 10
+        move_amount = 0
+        move_speed = 0
+
+
     # final_speed = int((move_speed + turn_speed) / 2)
-    final_speed = max(move_speed, turn_speed)
+    final_speed = min(500,max(move_speed, turn_speed))
 
     now = time.time()
     # making the calls sended max 5 time per second
@@ -557,8 +569,9 @@ while True:
         # Draw framerate in corner of frame
         # cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
         cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
-        cv2.putText(frame,f'P: {P:.4f}, I: {I:.4f} D: {D:.4f}',(30,70),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
-        cv2.putText(frame,f'P: {mP:.4f}, I: {mI:.4f} D: {mD:.4f}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        # cv2.putText(frame,f'P: {P:.4f}, I: {I:.4f} D: {D:.4f}',(30,70),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        # cv2.putText(frame,f'P: {mP:.4f}, I: {mI:.4f} D: {mD:.4f}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,f'Area: {target_area*100:.2f}%',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
@@ -581,17 +594,30 @@ while True:
         move_mode = not move_mode
 
     elif key_pressed == ord('1'):
-        mP += 0.05
+        P += 0.05
     elif key_pressed == ord('2'):
-        mP -= 0.05
+        P -= 0.05
     elif key_pressed == ord('3'):
-        mI += 0.0001
+        I += 0.0001
     elif key_pressed == ord('4'):
-        mI -= 0.0001
+        I -= 0.0001
     elif key_pressed == ord('5'):
-        mD += 0.0005
+        D += 0.0005
     elif key_pressed == ord('6'):
-        mD -= 0.0005
+        D -= 0.0005
+
+    elif key_pressed == ord('a'):
+        target_area += 0.05
+    elif key_pressed == ord('z'):
+        target_area -= 0.05
+
+    elif key_pressed == ord('b'):
+        if target_class == 0:
+            target_class = 51
+            target_area = 0.2
+        else:
+            target_class = 0
+            target_area = 0.4
 # Clean up
 cv2.destroyAllWindows()
 videostream.stop()
