@@ -285,7 +285,7 @@ freq = cv2.getTickFrequency()
 videostream = VideoStream(resolution=(imW,imH),framerate=30).start()
 time.sleep(1)
 cv2.namedWindow('the_screen', cv2.WINDOW_FREERATIO)
-# cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 # some initial values here
 the_X = resW/2
@@ -303,7 +303,11 @@ move_time = time.time()
 
 face_mode = False
 move_mode = False
+turn_mode = True
+use_eyes = False
 face_timer = time.time()
+eyes_timer = 0
+prev_eyes_angle = 0 
 
 eye_x = 0
 happy = 0
@@ -480,13 +484,29 @@ while True:
 
     now = time.time()
     # making the calls sended max 5 time per second
-    if client.is_connected and now > move_time + 0.02:
+    if client.is_connected and now > move_time + 0.02 and turn_mode:
         move_time = now
         # if we are connected to the robot we send commands.
         trys = 0
-        while trys < 3:
+        while trys < 2:
             try:
                 loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
+                break
+            except:
+                trys += 1
+    
+    # mechanical eyes move stuff
+    eyes_angle = (90 * (1 + delta * 1.5 ))
+    eyes_angle = max(5,min(175,eyes_angle))
+    eyes_angle = int(0.5 * eyes_angle + 0.5 * prev_eyes_angle)
+    prev_eyes_angle = eyes_angle
+    
+    if use_eyes and now > eyes_timer + 0.05:
+        eyes_timer = now
+        while trys < 2:
+            try:
+                loop.run_until_complete(BTwrite(f'<41,2,{eyes_angle},0>'))
+                loop.run_until_complete(BTwrite(f'<41,3,{eyes_angle},0>'))
                 break
             except:
                 trys += 1
@@ -523,6 +543,14 @@ while True:
             mth_h = 20
             mth_n = 20
             mth_y0 = 380
+        
+        if use_eyes:
+            # face_color = (12,150,242) 
+            face_color = (125,0,0)
+            mouth_color = (255,255,255)
+            mth_h = 65
+            mth_n = 6
+            mth_y0 = 200
 
         if time.time() > face_timer + random.randint(1,3):
             face_timer = time.time()
@@ -530,21 +558,22 @@ while True:
 
         frame = create_blank(800, 480, face_color)
         
-        if not move_mode:
-            cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), eyes_color, -1)
-            cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), mouth_color, -1)
-        else:
-            cv2.rectangle(frame, (0, eye_y0 - 50),(800, eye_y0+50),
-                            (125,125,125), -1 )
-            cv2.circle(frame, (eye_x0, eye_y0), 100, (255,255,255), -1)
-            cv2.circle(frame, (eye_x0 + eye_dx, eye_y0), 100, (255,255,255), -1)
-            cv2.ellipse(frame, (eye_x, eye_y0+5), (wx, wy),
-                        0, 0, 360, eyes_color, -1)
-            cv2.ellipse(frame, (eye_x + eye_dx, eye_y0+5), (wx, wy),
-                        0, 0, 360, eyes_color, -1)
+        if not use_eyes:
+            if not move_mode:
+                cv2.rectangle(frame,(eye_x - wx, eye_y0 - wy), (eye_x + wx, eye_y0 + wy), eyes_color, -1)
+                cv2.rectangle(frame,(eye_x + eye_dx - wx, eye_y0 - wy), (eye_x + eye_dx + wx, eye_y0 + wy), mouth_color, -1)
+            else:
+                cv2.rectangle(frame, (0, eye_y0 - 50),(800, eye_y0+50),
+                                (125,125,125), -1 )
+                cv2.circle(frame, (eye_x0, eye_y0), 100, (255,255,255), -1)
+                cv2.circle(frame, (eye_x0 + eye_dx, eye_y0), 100, (255,255,255), -1)
+                cv2.ellipse(frame, (eye_x, eye_y0+5), (wx, wy),
+                            0, 0, 360, eyes_color, -1)
+                cv2.ellipse(frame, (eye_x + eye_dx, eye_y0+5), (wx, wy),
+                            0, 0, 360, eyes_color, -1)
 
-            cv2.circle(frame, (eye_x0, eye_y0), 105, (155,155,155), 20)
-            cv2.circle(frame, (eye_x0 + eye_dx, eye_y0), 105, (155,155,155), 20)
+                cv2.circle(frame, (eye_x0, eye_y0), 105, (155,155,155), 20)
+                cv2.circle(frame, (eye_x0 + eye_dx, eye_y0), 105, (155,155,155), 20)
 
 
         mth_x0 = int((800 - mth_n * (mth_h + 0))/2)
@@ -561,7 +590,7 @@ while True:
             t_y += dy 
             t_y = int( t_y )
 
-            cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), (255,255,255), -1)
+            cv2.rectangle(frame,(t_x, t_y), (t_x + mth_h, t_y + mth_h), mouth_color, -1)
 
         cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
         pass
@@ -571,7 +600,7 @@ while True:
         cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
         # cv2.putText(frame,f'P: {P:.4f}, I: {I:.4f} D: {D:.4f}',(30,70),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
         # cv2.putText(frame,f'P: {mP:.4f}, I: {mI:.4f} D: {mD:.4f}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
-        cv2.putText(frame,f'Area: {target_area*100:.2f}%',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,f'Area: {target_area*100:.2f}%  Eyes: {use_eyes} {eyes_angle}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
@@ -592,6 +621,12 @@ while True:
 
     elif key_pressed == ord('m'):
         move_mode = not move_mode
+
+    elif key_pressed == ord('t'):
+        turn_mode = not turn_mode
+        
+    elif key_pressed == ord('e'):
+        use_eyes = not use_eyes
 
     elif key_pressed == ord('1'):
         P += 0.05
