@@ -285,7 +285,7 @@ freq = cv2.getTickFrequency()
 videostream = VideoStream(resolution=(imW,imH),framerate=30).start()
 time.sleep(1)
 cv2.namedWindow('the_screen', cv2.WINDOW_FREERATIO)
-cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+# cv2.setWindowProperty('the_screen', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 # some initial values here
 the_X = resW/2
@@ -304,6 +304,7 @@ move_time = time.time()
 face_mode = False
 move_mode = False
 turn_mode = True
+search_mode = False
 use_eyes = False
 face_timer = time.time()
 eyes_timer = 0
@@ -333,7 +334,7 @@ prev_turn = 0
 prev_area = 0
 target_class = 0
 target_area = 0.4
-reverse = False
+reverse = 0
 
 def create_blank(width, height, color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in BGR"""
@@ -410,18 +411,15 @@ while True:
         # aver_x = centers[0]
         # dist_area = areas[0]
         happy = 0.6 * happy + 0.4 * persons
+        search_mode = False
     else:
-        dist_area = target_area
-        if no_object_loops > 100:
-            if reverse:
-                aver_x = 0
-            else:
-                aver_x = imW
-                prev_turn = imW
+        dist_area = 0
+        if no_object_loops > 200:
+            search_mode = True
 
             no_object_loops = 0
             happy = -1
-            reverse = not reverse
+            reverse *= -1
         else:
             no_object_loops += 1
             happy = 0.8 * happy - 0.2
@@ -429,58 +427,65 @@ while True:
                 happy = -1
 
     # some tepmoral filtering
-    aver_x = 0.7 * prev_turn + 0.3 * aver_x
-    prev_turn = aver_x
+    if not search_mode:
+        aver_x = 0.7 * prev_turn + 0.3 * aver_x
+        prev_turn = aver_x
 
-    dist_area = 0.9 * prev_area + 0.1 * dist_area
-    prev_area = dist_area
+        dist_area = 0.9 * prev_area + 0.1 * dist_area
+        prev_area = dist_area
 
-    # Turning analysis
-    prev_delta = delta
-    delta = (the_X - aver_x) / resW
-    # deth zone by delta
-    if abs(delta) < 0.02: delta = 0
-    sum_delta += delta
-    diff_delta = prev_delta - delta
+        # Turning analysis
+        prev_delta = delta
+        delta = (the_X - aver_x) / resW
+        # deth zone by delta
+        if abs(delta) < 0.02: delta = 0
+        sum_delta += delta
+        diff_delta = prev_delta - delta
 
-    # Moving analysis
-    area_prev_delta = area_delta
-    area_delta = target_area - dist_area
-    if abs(area_delta) < 0.05: area_delta = 0
-    area_sum_delta += area_delta
-    area_diff_delta = area_prev_delta - area_delta
+        # Moving analysis
+        area_prev_delta = area_delta
+        area_delta = target_area - dist_area
+        if abs(area_delta) < 0.05: area_delta = 0
+        area_sum_delta += area_delta
+        area_diff_delta = area_prev_delta - area_delta
 
-    pid_out = P * delta + I * sum_delta + D * diff_delta
-    area_pid_out = mP * area_delta + mI * area_sum_delta + mD * area_diff_delta
+        pid_out = P * delta + I * sum_delta + D * diff_delta
+        area_pid_out = mP * area_delta + mI * area_sum_delta + mD * area_diff_delta
 
-    pid_out = round(pid_out, 3)
-    area_pid_out = round(area_pid_out, 3)
+        pid_out = round(pid_out, 3)
+        area_pid_out = round(area_pid_out, 3)
 
-    # addingo some hysteresis behaviour
-    # if abs(pid_out) < 0.05:
-    #     pid_out = 0
+        # addingo some hysteresis behaviour
+        # if abs(pid_out) < 0.05:
+        #     pid_out = 0
 
-    turn_amount = int(pid_out * 180)
-    turn_speed = (abs(pid_out) * 10000)
+        turn_amount = int(pid_out * 180)
+        turn_speed = (abs(pid_out) * 10000)
 
-    # if abs(area_pid_out) < 0.08:
-    #     area_pid_out = 0
+        # if abs(area_pid_out) < 0.08:
+        #     area_pid_out = 0
 
-    move_amount = 100 * area_pid_out
-    move_amount *= int(move_mode)
-    move_amount = int(move_amount)
+        move_amount = 100 * area_pid_out
+        move_amount *= int(move_mode)
+        move_amount = int(move_amount)
 
-    move_speed = (2000 * abs(area_pid_out))
+        move_speed = (9000 * abs(area_pid_out))
 
-    # more emphasis on turns than moves
-    if turn_amount > 1:
-        # move_amount = move_amount // 10
+        # more emphasis on turns than moves
+        if turn_amount > 1:
+            # move_amount = move_amount // 10
+            move_amount = 0
+            move_speed = 0
+
+
+        # final_speed = int((move_speed + turn_speed) / 2)
+        final_speed = min(1700,max(move_speed, turn_speed))
+
+    else:
+        final_speed = 400
         move_amount = 0
-        move_speed = 0
+        turn_amount = 60 
 
-
-    # final_speed = int((move_speed + turn_speed) / 2)
-    final_speed = min(500,max(move_speed, turn_speed))
 
     now = time.time()
     # making the calls sended max 5 time per second
@@ -503,6 +508,7 @@ while True:
     
     if use_eyes and now > eyes_timer + 0.05:
         eyes_timer = now
+        trys = 0
         while trys < 2:
             try:
                 loop.run_until_complete(BTwrite(f'<41,2,{eyes_angle},0>'))
