@@ -438,7 +438,8 @@ while True:
             if happy < -1:
                 happy = -1
 
-    # some tepmoral filtering
+    now = time.time()
+
     if not search_mode:
         aver_x = 0.7 * prev_turn + 0.3 * aver_x
         aver_y = 0.7 * prev_turn_y + 0.3 * aver_y
@@ -466,7 +467,7 @@ while True:
         area_diff_delta = area_prev_delta - area_delta
 
         # mechanical eyes move stuff
-        eyes_angle = (42 * (1 + delta * 3 ))
+        eyes_angle = (40 * (1 + delta * 3 ))
         eyes_angle = int(0.5 * eyes_angle + 0.5 * prev_eyes_angle)
 
         # eyes_angle_y = 45
@@ -480,7 +481,10 @@ while True:
 
 
         # deth zone by delta
-        if turn_mode and abs(delta) > 0.16:
+        if turn_mode:
+            if abs(delta) < 0.25:
+                delta = 0
+
             sum_delta += delta
             diff_delta = prev_delta - delta
 
@@ -517,7 +521,6 @@ while True:
             final_speed = min(1700,max(move_speed, turn_speed))
 
             # making the calls sended max 5 time per second
-            now = time.time()
             if client.is_connected and now > move_time + 0.02:
                 move_time = now
                 # if we are connected to the robot we send commands.
@@ -533,11 +536,19 @@ while True:
         move_amount = 0
         turn_amount = 60 
 
+        if client.is_connected and now > move_time + 0.02:
+            move_time = now
+            # if we are connected to the robot we send commands.
+            trys = 0
+            while trys < 2:
+                try:
+                    loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
+                    break
+                except:
+                    trys += 1
 
-    now = time.time()
-    
-    
-    if client.is_connected and use_eyes and now > eyes_timer + 0.05:
+
+    if client.is_connected and use_eyes and now > eyes_timer + 0.06:
         eyes_timer = now
         trys = 0
         while trys < 2:
@@ -634,10 +645,10 @@ while True:
     else:
         # Draw framerate in corner of frame
         # cv2.putText(frame,'FPS: {0:.2f}, persons: {1} {2}'.format(frame_rate_calc, persons, delta),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,0),2,cv2.LINE_AA)
-        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
-        # cv2.putText(frame,f'P: {P:.4f}, I: {I:.4f} D: {D:.4f}',(30,70),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,'turn: {0:.4f}, move: {1:.4f}'.format(pid_out, area_pid_out),(30,30),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,f'P: {P:.4f}, I: {I:.4f} D: {D:.4f}',(30,50),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
         # cv2.putText(frame,f'P: {mP:.4f}, I: {mI:.4f} D: {mD:.4f}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
-        cv2.putText(frame,f'Area: {target_area*100:.2f}%  Eyes: {use_eyes} {eyes_angle}',(30,90),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
+        cv2.putText(frame,f'Area: {target_area*100:.2f}%  Eyes: {use_eyes} {eyes_angle}',(30,70),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),2,cv2.LINE_AA)
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('the_screen', frame)
@@ -662,7 +673,7 @@ while True:
     elif key_pressed == ord('t'):
         turn_mode = not turn_mode
         
-    elif key_pressed == ord('e'):
+    elif key_pressed == ord('h'):
         use_eyes = not use_eyes
 
     elif key_pressed == ord('1'):
