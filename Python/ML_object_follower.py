@@ -289,26 +289,35 @@ cv2.namedWindow('the_screen', cv2.WINDOW_FREERATIO)
 
 # some initial values here
 the_X = resW/2
-aver_x = 0
+the_Y = 3*resH/4
+aver_x = the_X
+aver_y = the_Y
 delta = 0
 prev_delta = 0
 sum_delta = 0
+deltaY = 0
+prev_delta_y = 0
 
 area_delta = 0
 area_prev_delta = 0
 area_sum_delta = 0
+
+prev_turn = aver_x
+prev_turn_y = aver_y
+prev_area = 0
 
 no_object_loops = 0
 move_time = time.time()
 
 face_mode = False
 move_mode = False
-turn_mode = True
+turn_mode = False
 search_mode = False
-use_eyes = False
+use_eyes = not False
 face_timer = time.time()
 eyes_timer = 0
 prev_eyes_angle = 0 
+prev_eyes_angle_y = 0 
 
 eye_x = 0
 happy = 0
@@ -330,11 +339,11 @@ mP = 0.7
 mI = 0.0001
 mD = 0.01
 
-prev_turn = 0
-prev_area = 0
 target_class = 0
 target_area = 0.4
 reverse = 0
+pid_out = 0
+area_pid_out = 0
 
 def create_blank(width, height, color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in BGR"""
@@ -375,6 +384,7 @@ while True:
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     persons = 0
     centers = []
+    centersY = []
     areas = []
 
     for i in range(len(scores)):
@@ -393,6 +403,7 @@ while True:
                 cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
                 
                 centers.append(xmin+(xmax-xmin)/2)
+                centersY.append(ymin+(ymax-ymin)/2)
                 areas.append((ymax-ymin)*(xmax - xmin)/(imW*imH))
 
                 if not face_mode:
@@ -407,6 +418,7 @@ while True:
 
     if len(centers):
         aver_x = sum(centers) / len(centers)
+        aver_y = sum(centersY) / len(centersY)
         dist_area = max(areas) 
         # aver_x = centers[0]
         # dist_area = areas[0]
@@ -429,18 +441,22 @@ while True:
     # some tepmoral filtering
     if not search_mode:
         aver_x = 0.7 * prev_turn + 0.3 * aver_x
+        aver_y = 0.7 * prev_turn_y + 0.3 * aver_y
         prev_turn = aver_x
+        prev_turn_y = aver_y
 
         dist_area = 0.9 * prev_area + 0.1 * dist_area
         prev_area = dist_area
 
         # Turning analysis
-        prev_delta = delta
-        delta = (the_X - aver_x) / resW
+        prev_delta_y = deltaY
+        deltaY = ( the_Y - aver_y ) / resH
         # deth zone by delta
-        if abs(delta) < 0.02: delta = 0
-        sum_delta += delta
-        diff_delta = prev_delta - delta
+        if abs(deltaY) < 0.01: deltaY = 0
+
+        # Turning analysis
+        prev_delta = delta
+        delta = ( the_X - aver_x ) / resW
 
         # Moving analysis
         area_prev_delta = area_delta
@@ -449,38 +465,69 @@ while True:
         area_sum_delta += area_delta
         area_diff_delta = area_prev_delta - area_delta
 
-        pid_out = P * delta + I * sum_delta + D * diff_delta
-        area_pid_out = mP * area_delta + mI * area_sum_delta + mD * area_diff_delta
+        # mechanical eyes move stuff
+        eyes_angle = (42 * (1 + delta * 3 ))
+        eyes_angle = int(0.5 * eyes_angle + 0.5 * prev_eyes_angle)
 
-        pid_out = round(pid_out, 3)
-        area_pid_out = round(area_pid_out, 3)
+        # eyes_angle_y = 45
+        eyes_angle_y = (55 * (1 + deltaY * 4 ))
+        eyes_angle_y = int(0.5 * eyes_angle_y + 0.5 * prev_eyes_angle_y)
 
-        # addingo some hysteresis behaviour
-        # if abs(pid_out) < 0.05:
-        #     pid_out = 0
-
-        turn_amount = int(pid_out * 180)
-        turn_speed = (abs(pid_out) * 10000)
-
-        # if abs(area_pid_out) < 0.08:
-        #     area_pid_out = 0
-
-        move_amount = 100 * area_pid_out
-        move_amount *= int(move_mode)
-        move_amount = int(move_amount)
-
-        move_speed = (9000 * abs(area_pid_out))
-
-        # more emphasis on turns than moves
-        if turn_amount > 1:
-            # move_amount = move_amount // 10
-            move_amount = 0
-            move_speed = 0
+        eyes_angle = max(0,min(85,eyes_angle))
+        eyes_angle_y = max(0,min(85,eyes_angle_y))
+        prev_eyes_angle = eyes_angle
 
 
-        # final_speed = int((move_speed + turn_speed) / 2)
-        final_speed = min(1700,max(move_speed, turn_speed))
 
+        # deth zone by delta
+        if turn_mode and abs(delta) > 0.16:
+            sum_delta += delta
+            diff_delta = prev_delta - delta
+
+            pid_out = P * delta + I * sum_delta + D * diff_delta
+            area_pid_out = mP * area_delta + mI * area_sum_delta + mD * area_diff_delta
+
+            pid_out = round(pid_out, 3)
+            area_pid_out = round(area_pid_out, 3)
+
+            # addingo some hysteresis behaviour
+            # if abs(pid_out) < 0.05:
+            #     pid_out = 0
+
+            turn_amount = int(pid_out * 180)
+            turn_speed = (abs(pid_out) * 10000)
+
+            # if abs(area_pid_out) < 0.08:
+            #     area_pid_out = 0
+
+            move_amount = 50 * area_pid_out
+            move_amount *= int(move_mode)
+            move_amount = int(move_amount)
+
+            move_speed = (9000 * abs(area_pid_out))
+
+            # more emphasis on turns than moves
+            if turn_amount > 1:
+                # move_amount = move_amount // 10
+                move_amount = 0
+                move_speed = 0
+
+
+            # final_speed = int((move_speed + turn_speed) / 2)
+            final_speed = min(1700,max(move_speed, turn_speed))
+
+            # making the calls sended max 5 time per second
+            now = time.time()
+            if client.is_connected and now > move_time + 0.02:
+                move_time = now
+                # if we are connected to the robot we send commands.
+                trys = 0
+                while trys < 2:
+                    try:
+                        loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
+                        break
+                    except:
+                        trys += 1
     else:
         final_speed = 400
         move_amount = 0
@@ -488,31 +535,15 @@ while True:
 
 
     now = time.time()
-    # making the calls sended max 5 time per second
-    if client.is_connected and now > move_time + 0.02 and turn_mode:
-        move_time = now
-        # if we are connected to the robot we send commands.
-        trys = 0
-        while trys < 2:
-            try:
-                loop.run_until_complete(BTwrite(f'<1,{move_amount},{turn_amount},{final_speed}>'))
-                break
-            except:
-                trys += 1
     
-    # mechanical eyes move stuff
-    eyes_angle = (90 * (1 + delta * 1.5 ))
-    eyes_angle = max(5,min(175,eyes_angle))
-    eyes_angle = int(0.5 * eyes_angle + 0.5 * prev_eyes_angle)
-    prev_eyes_angle = eyes_angle
     
-    if use_eyes and now > eyes_timer + 0.05:
+    if client.is_connected and use_eyes and now > eyes_timer + 0.05:
         eyes_timer = now
         trys = 0
         while trys < 2:
             try:
-                loop.run_until_complete(BTwrite(f'<41,2,{eyes_angle},0>'))
-                loop.run_until_complete(BTwrite(f'<41,3,{eyes_angle},0>'))
+                loop.run_until_complete(BTwrite(f'<41,0,{eyes_angle},0>'))
+                loop.run_until_complete(BTwrite(f'<41,1,{eyes_angle_y},0>'))
                 break
             except:
                 trys += 1
