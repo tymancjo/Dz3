@@ -1,15 +1,36 @@
 # Dz3 
-## The Dżordż version 3.1 with added remote control options
 
-This is an Adruino based Robot experiment. It works with python PC path maker and work little bit like CNC
+## The Dzordz version 3.2 with support form the Tensor flow based camera people recognition.
 
+This is experimental robot platform builded as R&D project to learn about general micro controllers and other stuff. 
+
+The core moving functionality is made by use of the Arduino Uno which is driving the NEMA17 stepper motors via appropriate silent drivers. 
+This allows to control the basic movements of the robot (driving it) by sending to the arduino special commands. More in depth description is in the "Dz3 - Arduino code communication" section of this readme. 
+
+Additional functionality of the mentioned arduino uno is to control 16 channel PWM servo motors controller which allow for control of movement of animatronic parts.
+
+The autonomous behavior are realized by the Raspberry PI 4 sbc which use webcam to observe the surroundings and make decisions how the robot shall behave. The required commands are send to the Arduino part via UART communication made by use of BLE connection. 
+
+Some videos from from the continuos development are available here:
+https://youtube.com/playlist?list=PL9g9iwA2sCQyebAMLQ3WOS7w4_cqAUxdq
+
+The general scheme of operation of the current version looks like follow:
+![Blok scheme](img/IMG_4066.JPG)
+
+
+
+
+Previous intro:
+>## The Dżordż version 3.1 with added remote control options
+
+>This is an Adruino based Robot experiment. It works with python PC path maker and work little bit like CNC. 
 This project is all about experimenting with Arduino based small driving robot unit that can be controlled by set of commands sent by uart/serial communication.
 The basics are:
-- Robot is using 2 stepper motors oneforeach wheel
-- Root is usingAccelStepper library from Ardruino ecosystem (https://www.airspayce.com/mikem/arduino/AccelStepper/)
-- The set of commands can be sent by any means - now it uses a Bluetooth BLE connection 
+>- Robot is using 2 stepper motors oneforeach wheel
+>- Root is usingAccelStepper library from Ardruino ecosystem (https://www.airspayce.com/mikem/arduino/AccelStepper/) 
+>- The set of commands can be sent by any means - now it uses a Bluetooth BLE connection 
 
-# Dz3 Hardware description
+# Dz3 Arduino part Hardware description
 
 The general idea of Dżordż3 (George 3) alias Dz3 is based on the quite universal platform that allows for experiments with basic robotics.
 
