@@ -76,6 +76,7 @@ where:
 - 30 - RUN the SEQUENCE - just starts to execute memorized commands
 - 31 - RESUME SEQUENCE - starts the sequence from where it was stopped (by sending <0>whileexecuting)
 - 33 - RUN in LOOP - execute the seqience like command 30 but in infinite loop (can be named "patrol mode")
+- 41 - SET servo (one of 16) to ga given angle. Can be used as: <41,ServoNum,ServoPos,0>. Where ServoNum is the 0 to 15 servo channel, ServoPos is a position in degrees from 0 to 180. 
 
 ### Examples of commands:
 - <1,100,0,0> - move 1m ahead
