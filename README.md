@@ -17,8 +17,9 @@ https://youtube.com/playlist?list=PL9g9iwA2sCQyebAMLQ3WOS7w4_cqAUxdq
 The general scheme of operation of the current version looks like follow:
 ![Blok scheme](img/IMG_4066.JPG)
 
+## The ML part
 
-
+All video view analysis is based on the TensorFlowLight library which runs via Python library together with the openCV as a all picture handling library, and blake as a library for BLE communication. All code id in the Python folder. 
 
 Previous intro:
 >## The Dżordż version 3.1 with added remote control options
