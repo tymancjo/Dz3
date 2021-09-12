@@ -3,7 +3,7 @@ import math
 import asyncio
 from bleak import BleakClient, BleakScanner 
 from bleak.exc import BleakError
-from time import sleep, thread_time
+from time import sleep, thread_time, time
 
 # ogólne funkcje i klasy
 def myround(x, base=5):
@@ -78,6 +78,68 @@ class Paint(object):
         self.go_right.bind("<ButtonPress>", self.goRight)
         self.go_right.bind("<ButtonRelease>", self.goStop)
 
+        # Hands controll 
+        self.go_right = Button(self.root, text='\| |')
+        self.go_right.grid(row=14, column=10)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,15,170,0> <41,14,0,0>"))
+
+        self.go_right = Button(self.root, text='| |')
+        self.go_right.grid(row=14, column=11)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,0,180,0> <41,1,45,0> <41,15,0,0> <41,14,99,0>"))
+
+        self.go_right = Button(self.root, text='| |/')
+        self.go_right.grid(row=14, column=12)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,0,10,0> <41,1,130,0>"))
+        
+        self.go_right = Button(self.root, text='( o o)')
+        self.go_right.grid(row=10, column=12)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,7,155,0>"))
+
+        self.go_right = Button(self.root, text='(o o)')
+        self.go_right.grid(row=10, column=11)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,7,85,0>"))
+
+        self.go_right = Button(self.root, text='(o o )')
+        self.go_right.grid(row=10, column=10)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,7,5,0>"))
+        
+        self.head_txt = Label(self.root, text = "Turning head")
+        self.head_txt.grid(row=11, column=10, columnspan=3)
+        self.head_slider = Scale(self.root, from_=5, to=155, orient=HORIZONTAL, 
+            command=lambda tmp=None: 
+            self.command(f"<41, 7,{myround(self.head_slider.get())},0>"))
+        self.head_slider.set(85)
+        self.head_slider.grid(row=12, column=10, columnspan=4,sticky='NSEW')
+
+        self.head_slider2 = Scale(self.root, from_=0, to=100, orient=HORIZONTAL, 
+            command=lambda tmp=None: 
+            self.command(f"<41, 6,{myround(self.head_slider2.get())},0>"))
+        self.head_slider2.set(40)
+        self.head_slider2.grid(row=13, column=10, columnspan=4,sticky='NSEW')
+
+        self.go_right = Button(self.root, text='| |')
+        self.go_right.grid(row=14, column=11)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: 
+                self.command("<41,7,85,0> <41,0,180,0> <41,1,45,0> <41,15,0,0> <41,14,99,0>"))
+
+        self.go_right = Button(self.root, text="\ ^^\ ")
+        self.go_right.grid(row=14, column=10)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,7,160,0> <41,0,170,0> <41,1,0,0> <41,15,170,0> <41,14,5,0>"))
+        
+        self.go_right = Button(self.root, text="/ ^^/ ")
+        self.go_right.grid(row=14, column=12)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: self.command("<41,7,20,0> <41,0,0,0> <41,1,160,0> <41,15,0,0> <41,14,160,0>"))
+
+        self.go_right = Button(self.root, text="# ^^|")
+        self.go_right.grid(row=15, column=10)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: 
+                self.command("<41,0,180,0> <41,1,80,0> <41,15,110,0> <41,14,5,0>"))
+
+        self.go_right = Button(self.root, text="|^^ #")
+        self.go_right.grid(row=15, column=12)
+        self.go_right.bind("<ButtonPress>",lambda tmp=None: 
+                self.command("<41,0,60,0> <41,1,145,0> <41,15,0,0> <41,14,100,0>"))
+
         # turning by arc  stuff
         self.alphatxt = Label(self.root, text = "Turning by angle ")
         self.alphatxt.grid(row=1, column=10, columnspan=3)
@@ -126,6 +188,9 @@ class Paint(object):
         self.intranslate = False;
         self.translateclick= (0,0);
 
+        self.last_cmd_time = time()
+        self.cmd_delay = 100/1000;
+
         self.setup()
         self.BTsetup()
         self.root.mainloop()
@@ -165,7 +230,7 @@ class Paint(object):
         self.loop = False
 
         self.is_serial = False
-        self.is_BLE = True
+        self.is_BLE = False
 
 
     async def BTsearch(self):
@@ -429,6 +494,20 @@ class Paint(object):
         elif self.is_BLE:
             # sent the GO command
             self.BLE_sent(message)
+
+    def command(self, cmd, *args):
+        # sent the GO command
+        message = cmd
+        if time() > self.last_cmd_time + self.cmd_delay:
+            print(f"sending: {message}")
+            self.last_cmd_time = time();
+            if self.is_serial:
+                # sent the GO command
+                self.ser.write(message.encode('utf-8'))
+                print(message.encode('utf-8'))
+            elif self.is_BLE:
+                # sent the GO command
+                self.BLE_sent(message)
 
     def zoom(self,event):
         self.choose_size_button.set(self.choose_size_button.get() + event.delta);
