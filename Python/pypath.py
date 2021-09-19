@@ -57,6 +57,9 @@ class Paint(object):
         self.c = Canvas(self.root, bg='darkgray', width=self.WIDTH, height=self.HEIGHT)
         self.c.grid(row=1, columnspan=9, rowspan=30)
 
+        self.handc = Canvas(self.root, bg='white', width=200, height=200)
+        self.handc.grid(row=5, column=14, columnspan=1, rowspan=1)
+
         # control buttons 
         self.go_up = Button(self.root, text='Up')
         self.go_up.grid(row=8, column=11)
@@ -173,6 +176,13 @@ class Paint(object):
         self.snap = not True
         self.toggle_snap()
 
+        self.hand_lines = []
+        self.hand_point = 0
+        self.hand_zero = (150,100)
+        self.hand_A = 100
+        self.hand_B = 100
+        self.hand_Alfa0 = 60
+
 
         self.globalAngle = 90; # startring angle 
         self.globalAngleLast = [self.globalAngle];
@@ -189,7 +199,7 @@ class Paint(object):
         self.translateclick= (0,0);
 
         self.last_cmd_time = time()
-        self.cmd_delay = 100/1000;
+        self.cmd_delay = 20/1000;
 
         self.setup()
         self.BTsetup()
@@ -215,6 +225,9 @@ class Paint(object):
         self.c.bind('<Button-5>', self.zoomOut)
         self.c.bind('<Motion>', self.showTrajectory)
 
+        self.handc.bind('<B1-Motion>', self.setHand)
+        self.handc.bind('<Button-1>', self.setHand)
+
         self.alpha_slider.bind('<Button-5>', self.anle_dn)
         self.alpha_slider.bind('<Button-4>', self.anle_up)
 
@@ -222,6 +235,9 @@ class Paint(object):
         self.R_slider.bind('<Button-4>', self.R_up)
 
         self.theGrid(self.choose_size_button.get());   
+
+        self.handc_set()
+    
 
     def BTsetup(self):
         self.the_device = ""
@@ -760,6 +776,91 @@ class Paint(object):
                     print(self.commands[-1])
                     self.commands.append((dL,0,0,dA))
                     print(self.commands[-1])
+
+    
+    # for hand drawing
+    def handc_set(self):
+        line = self.handc.create_line(0,self.hand_zero[1],200,self.hand_zero[1],
+                width=2, fill='red',
+                capstyle=ROUND, smooth=TRUE, splinesteps=1)
+        self.hand_lines.append(line)
+
+        line = self.handc.create_line(self.hand_zero[0],0,self.hand_zero[0],200,
+                width=2, fill='red',
+                capstyle=ROUND, smooth=TRUE, splinesteps=1)
+        self.hand_lines.append(line)
+
+    def lineend(self, x,y,m,alpha):
+        alpha_rad = alpha * math.pi / 180
+        xe = m * math.cos(alpha_rad) + x
+        ye = m * math.sin(alpha_rad) + y
+        return xe, ye
+
+    def setHand(self, event):
+        x = event.x
+        y = event.y
+        x0, y0 = self.hand_zero[0],self.hand_zero[1]
+        xx = x - x0
+        yy = y - y0
+        L1 = 50
+        L2 = 50
+        m_max = L1 + L2
+        m = math.sqrt(xx*xx+yy*yy) / m_max
+        r = 3
+
+        if self.hand_point: self.handc.delete(self.hand_point)
+        for l in self.hand_lines: self.handc.delete(l)
+
+        self.handc_set()
+
+        self.hand_point = self.handc.create_oval(x-r,y-r,x+r,y+r,outline='black',
+                fill=None, width=2)
+
+        line = self.handc.create_line(x0,y0,x,y,
+                width=1, fill='red',
+                capstyle=ROUND, smooth=TRUE, splinesteps=1)
+        self.hand_lines.append(line)
+
+        # A = 40
+        A = math.degrees(math.atan2(y-y0, x-x0))
+        if A < 0: A = 360 + A 
+        dzetta = A #- self.hand_Alfa0
+
+        if m > 1:
+            fi = 180
+        else:
+            fi = math.degrees(math.acos(((m*m_max)**2 - L1*L1 - L2*L2)/(-2*L1*L2)))
+
+        psi = dzetta - (180 - fi)/2
+
+        fi = max(0,min(180,fi))
+
+        print(f'm: {m} A:{A} fi:{fi} psi:{psi}')
+        cmd_str =  f'<41,0,{int(max(0,180-(psi-60)))},0> <41,1,{int(fi)},0>'
+        cmd_str += ' '
+        cmd_str += f'<41,15,{int(max(0,(psi-60)))},0> <41,14,{int(180-fi)},0>'
+        self.command(cmd_str)
+
+        psi = max(self.hand_Alfa0,min(180+self.hand_Alfa0,psi))
+
+        B = 90
+        A1 = self.hand_Alfa0 + A
+        A1 = max(self.hand_Alfa0, A)
+        B1 = A1 + 180 - B
+
+        xe,ye = self.lineend(x0,y0,50,psi) #self.hand_Alfa0)
+
+        line = self.handc.create_line(x0,y0,xe,ye,
+                width=4, fill='green',
+                capstyle=ROUND, smooth=TRUE, splinesteps=1)
+        self.hand_lines.append(line)
+
+        xf,yf = self.lineend(xe,ye,50,psi + 180 - fi) #self.hand_Alfa0)
+
+        line = self.handc.create_line(xe,ye,xf,yf,
+                width=3, fill='blue',
+                capstyle=ROUND, smooth=TRUE, splinesteps=1)
+        self.hand_lines.append(line)
     
     def sent_serial(self):
         # first sent the set of sequence commands
