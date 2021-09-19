@@ -796,6 +796,40 @@ class Paint(object):
         ye = m * math.sin(alpha_rad) + y
         return xe, ye
 
+    def setHandIK(self, x, y, h=0, a0=60):
+        """
+        Inverse Kinematic model for hands
+        x,y palm position in relative space (-1,-1) to (1,1)
+        h - hand number
+        """
+        m = math.sqrt(x**2 + y**2)
+
+        if m > 1:
+            fi = 180
+        else:
+            fi = math.degrees(math.acos((m**2 -0.25 -0.25)/(-0.5)))
+        
+        dzetta = math.degrees(math.atan2(-y,-x)) 
+        if dzetta < 0: dzetta = 360 + dzetta
+
+        psi = dzetta - (180 - fi)/2
+        psi -= a0
+        psi = max(0,min(180,psi))
+        fi = max(0,min(180,fi))
+
+        cmd_str = '' 
+
+        if h==0 or h==3:
+            cmd_str +=  f'<41,0,{int(max(0,180-(psi)))},0> <41,1,{int(fi)},0>'
+            cmd_str += ' '
+
+        if h==1 or h==3:
+            cmd_str += f'<41,15,{int(max(0,(psi)))},0> <41,14,{int(180-fi)},0>'
+        
+        return cmd_str
+
+        
+
     def setHand(self, event):
         x = event.x
         y = event.y
@@ -835,11 +869,14 @@ class Paint(object):
 
         fi = max(0,min(180,fi))
 
+        ik_output = self.setHandIK(-xx/m_max, -yy/m_max, h=3,a0=60)
+        print(f'IK: {ik_output}')
+
         print(f'm: {m} A:{A} fi:{fi} psi:{psi}')
-        cmd_str =  f'<41,0,{int(max(0,180-(psi-60)))},0> <41,1,{int(fi)},0>'
-        cmd_str += ' '
-        cmd_str += f'<41,15,{int(max(0,(psi-60)))},0> <41,14,{int(180-fi)},0>'
-        self.command(cmd_str)
+        # cmd_str =  f'<41,0,{int(max(0,180-(psi-60)))},0> <41,1,{int(fi)},0>'
+        # cmd_str += ' '
+        # cmd_str += f'<41,15,{int(max(0,(psi-60)))},0> <41,14,{int(180-fi)},0>'
+        self.command(ik_output)
 
         psi = max(self.hand_Alfa0,min(180+self.hand_Alfa0,psi))
 
